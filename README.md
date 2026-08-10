@@ -454,3 +454,10 @@ Local preview: open `docs/index.html` or serve `docs/` with any static server.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+## License
+
+Copyright © 2026 Zero State LLC. All Rights Reserved. Licensed under the Zero State Proprietary License v1.0. See [`LICENSE`](LICENSE).
+
+Third-party components remain subject to their respective licenses.
