@@ -11,6 +11,7 @@ license: MIT
 platforms: [linux, macos, windows]
 dependencies: []
 metadata:
+  author: Daniel Meyer (@scrimshawlife-ctrl) / Zero State LLC
   hermes:
     tags:
       - Creative
