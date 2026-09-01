@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>v0.13.0</strong> · Hermes skill · offline-first · wallpaper product · MIT
+  <strong>v0.13.1</strong> · Hermes skill · offline-first · wallpaper product · MIT
 </p>
 
 <p align="center">

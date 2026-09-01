@@ -172,15 +172,24 @@ def cmd_check(_: argparse.Namespace) -> int:
             module_errors.append(f"{name}: {exc}")
     modules_ok = not module_errors
 
-    # Hermes SKILL.md frontmatter (packaging gate)
+    # Hermes SKILL.md frontmatter (packaging gate, incl. ≤60-char description)
     hermes_ok = False
     hermes_errors: list[str] = []
+    description_chars = 0
     try:
-        from validate_hermes_skill import validate as validate_hermes
+        from validate_hermes_skill import MAX_DESCRIPTION, validate as validate_hermes
 
         hermes_report = validate_hermes(root / "SKILL.md")
         hermes_ok = bool(hermes_report.get("ok"))
         hermes_errors = list(hermes_report.get("errors") or [])
+        description_chars = int(hermes_report.get("description_chars") or 0)
+        if description_chars > MAX_DESCRIPTION:
+            hermes_ok = False
+            msg = (
+                f"description length {description_chars} > {MAX_DESCRIPTION}"
+            )
+            if msg not in hermes_errors:
+                hermes_errors.append(msg)
     except Exception as exc:  # noqa: BLE001
         hermes_errors = [str(exc)]
         hermes_ok = False
@@ -252,6 +261,8 @@ def cmd_check(_: argparse.Namespace) -> int:
                 "module_errors": module_errors,
                 "hermes_ok": hermes_ok,
                 "hermes_errors": hermes_errors,
+                "description_chars": description_chars,
+                "description_ok": bool(description_chars) and description_chars <= 60,
                 "construct_ok": construct_ok,
                 "verify_ok": verify_ok,
                 "poi_ok": poi_ok,
@@ -737,12 +748,19 @@ def cmd_doctor(_: argparse.Namespace) -> int:
 
     hermes_ok = False
     hermes_errors: list[str] = []
+    description_chars = 0
     try:
-        from validate_hermes_skill import validate as validate_hermes
+        from validate_hermes_skill import MAX_DESCRIPTION, validate as validate_hermes
 
         hr = validate_hermes(root / "SKILL.md")
         hermes_ok = bool(hr.get("ok"))
         hermes_errors = list(hr.get("errors") or [])
+        description_chars = int(hr.get("description_chars") or 0)
+        if description_chars > MAX_DESCRIPTION:
+            hermes_ok = False
+            msg = f"description length {description_chars} > {MAX_DESCRIPTION}"
+            if msg not in hermes_errors:
+                hermes_errors.append(msg)
     except Exception as exc:  # noqa: BLE001
         hermes_errors = [str(exc)]
 
@@ -760,6 +778,8 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         "module_errors": module_errors,
         "hermes_ok": hermes_ok,
         "hermes_errors": hermes_errors,
+        "description_chars": description_chars,
+        "description_ok": bool(description_chars) and description_chars <= 60,
         "proof_providers": proof_providers,
         "packaging": "hermes-skill",
         "hermes_skill_dir_env": __import__("os").environ.get("HERMES_SKILL_DIR"),

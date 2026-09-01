@@ -1,6 +1,6 @@
 # Expansion spine
 
-**Current release: v0.13.0** (this file tracks shipped vs remaining).
+**Current release: v0.13.1** (this file tracks shipped vs remaining).
 
 Sigil-Forge is a standalone Hermes skill with a lean install tree, additive
 channels, and an explicit method ontology so “sigil” never collapses intent
@@ -28,6 +28,7 @@ compression, name paths, planetary characters, and entity seals.
 | v0.12.5 | Hermes runtime polish: check/eval no skill-out pollution, PoI+hermes eval cases, lean help refs |
 | v0.12.6 | Wizard PoI steps (proof/kdf), apply capsule surfaces, Hermes agent next-hints |
 | v0.13.0 | **Wallpaper product:** SF12 sealed vault (intent+methods in PNG); open --wallpaper |
+| v0.13.1 | Hermes Agent v0.21 skill index: ≤60-char description, `[[as_document]]` wallpaper delivery |
 
 ### Craft / methods
 - Encodings: `hebrew_gematria` (default; native Hebrew + latin translit), `latin_extended`, `latin_mod9_v1` (compat)

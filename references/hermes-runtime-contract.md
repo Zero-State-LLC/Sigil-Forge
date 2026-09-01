@@ -1,9 +1,16 @@
 # Hermes runtime contract
 
-Version: **v3** (Sigil-Forge v0.12.6+)
+Version: **v4** (Sigil-Forge v0.13.1+, Hermes Agent v0.21 / tag v2026.8.31)
 
 Sigil-Forge is a **standalone Hermes skill** (not a Hermes plugin).  
 Default install path: `~/.hermes/skills/sigil-forge`. Skill name: `sigil-forge`.
+
+**v0.21 index:** `SKILL.md` frontmatter starts at byte 0. Description is one
+sentence, ≤60 characters, ending with a period (Hermes truncates the index at
+57 characters + `...`). Invoke the CLI through the Hermes `terminal` tool with
+`${HERMES_SKILL_DIR}`. When the agent shows a wallpaper, PNG, or SVG, emit
+`[[as_document]]` so the gateway attaches the file instead of a crushed
+preview. Do not add a blueprint or cron.
 
 **Skill vs plugin:** A skill teaches when/how to forge via `SKILL.md` + offline
 CLI. A plugin would inject always-on tools/hooks — not the product shape here.
@@ -94,7 +101,9 @@ Under `schemas/` (validate when `jsonschema` available; structural checks always
 5. Never claim efficacy or stego success without verify.  
 6. Standalone: no hard dependency on Kubrick, Orchestra, or ComfyUI.  
 7. Wallpapers: atmosphere only — never AI-redraw canonical glyph.  
-8. PoI: never put commitment nonce in public media; never claim ZK without dual pass.
+8. PoI: never put commitment nonce in public media; never claim ZK without dual pass.  
+9. When delivering wallpaper/PNG/SVG the user should see, include the absolute
+   path and the literal `[[as_document]]` directive (commonly last line).
 
 ## Host tools
 

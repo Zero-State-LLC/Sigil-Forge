@@ -46,6 +46,8 @@ def test_check_requires_schemas_and_modules():
     assert payload.get("construct_error") in (None, "")
     assert payload.get("hermes_ok") is True
     assert payload.get("poi_ok") is True
+    assert payload.get("description_ok") is True
+    assert payload.get("description_chars", 99) <= 60
 
 
 def test_check_does_not_pollute_skill_out(tmp_path: Path, monkeypatch):
