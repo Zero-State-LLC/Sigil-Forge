@@ -25,6 +25,10 @@ def test_validate_hermes_skill_ok():
     assert payload["ok"] is True
     assert payload.get("errors") == []
     assert payload.get("name") == "sigil-forge"
+    assert payload.get("description_chars", 99) <= 60
+    desc = payload.get("description") or ""
+    assert desc.endswith(".")
+    assert "powerful" not in desc.lower()
 
 
 def test_check_reports_hermes_and_poi_ok():
@@ -41,6 +45,8 @@ def test_check_reports_hermes_and_poi_ok():
     assert payload.get("poi_ok") is True
     assert payload.get("modules_ok") is True
     assert payload.get("missing") == []
+    assert payload.get("description_ok") is True
+    assert payload.get("description_chars", 99) <= 60
     assert "forge_core" not in str(payload.get("module_errors") or [])
 
 
@@ -56,6 +62,8 @@ def test_doctor_packaging_and_providers():
     assert payload["ok"] is True
     assert payload.get("packaging") == "hermes-skill"
     assert payload.get("hermes_ok") is True
+    assert payload.get("description_ok") is True
+    assert payload.get("description_chars", 99) <= 60
     names = {p["name"] for p in payload.get("proof_providers") or []}
     assert "none" in names
     assert "risc0" in names
