@@ -2,6 +2,8 @@
 
 Authorized contributors and agents only.
 
+Agents and contributors follow [`AGENTS.md`](AGENTS.md). Non-trivial Hermes skill work starts with an intent under [`intent/`](intent/). This repository is a standalone Hermes skill — do not invent plugins, extra bots, or Noema deploy dumps here. Do not rewrite [`SKILL.md`](SKILL.md) unless that file is the accepted change.
+
 
 ## Licensing and contributions
 
