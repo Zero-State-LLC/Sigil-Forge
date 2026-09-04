@@ -415,10 +415,17 @@ Version: [`VERSION`](VERSION) · roadmap: [references/expansion-spine.md](refere
 
 ---
 
+## Agent contract
+
+Humans and coding agents follow [`AGENTS.md`](AGENTS.md). [`CLAUDE.md`](CLAUDE.md) only points there. Non-trivial Hermes skill work starts with an intent under [`intent/`](intent/). `SKILL.md` remains the Hermes runtime contract — do not rewrite it unless that is the accepted change. No extra bots. No Noema deploy dumps.
+
 ## Documentation
 
 | Doc | Topic |
 |-----|--------|
+| [AGENTS.md](AGENTS.md) | Contributor / agent contract (Hermes skill; Escalation) |
+| [CLAUDE.md](CLAUDE.md) | Thin adapter → `AGENTS.md` |
+| [intent/](intent/README.md) | Stage-0 proto-spec for non-trivial skill work |
 | [QUICKSTART.md](QUICKSTART.md) | Short command sequence |
 | [SKILL.md](SKILL.md) | Hermes behavior contract |
 | [references/wizard.md](references/wizard.md) | Step runner, paths, sessions, PoI steps |
