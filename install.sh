@@ -8,7 +8,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEFAULT_TARGET="${HOME}/.hermes/skills/sigil-forge"
+DEFAULT_TARGET="${HERMES_HOME:-$HOME/.hermes}/skills/sigil-forge"
 VERSION="$(tr -d '[:space:]' < "${ROOT}/VERSION" 2>/dev/null || echo "0.0.0")"
 
 DRY_RUN=0
@@ -66,12 +66,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 validate_target() {
+  python3 - "$TARGET" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1]).expanduser().absolute()
+if not sys.argv[1].strip() or any(q.is_symlink() for q in (p, *p.parents)):
+    raise SystemExit("refusing empty or symlinked target path")
+PY
+
   local parent base resolved home_resolved
   parent="$(dirname "$TARGET")"
   base="$(basename "$TARGET")"
-  if [[ $DRY_RUN -eq 0 ]]; then
-    mkdir -p "$parent" 2>/dev/null || true
-  fi
+  # Validation and dry-run do not create destination parents.
   if [[ -d "$parent" ]]; then
     resolved="$(resolve_path "$parent")/${base}"
   else
@@ -203,10 +209,6 @@ post_check() {
   # Resolve skill root from install path (not the clone cwd)
   HERMES_SKILL_DIR="${dest}" python3 "${dest}/scripts/sigil_forge.py" check \
     || die "post-install check failed: HERMES_SKILL_DIR=${dest} python3 ${dest}/scripts/sigil_forge.py check"
-  # check uses temp dirs only; remove any accidental skill-root out/ pollution
-  if [[ -d "${dest}/out" ]]; then
-    rm -rf "${dest}/out"
-  fi
   log "Post-install check OK"
 }
 
@@ -220,8 +222,7 @@ if [[ $DRY_RUN -eq 1 ]]; then
   exit 0
 fi
 
-sync_tree "$TARGET"
-post_check "$TARGET"
+python3 "${ROOT}/scripts/install_transaction.py" "$ROOT" "$TARGET" sigil-forge
 
 echo ""
 log "Sigil-Forge v${VERSION} installed → ${TARGET}"
