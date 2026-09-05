@@ -144,6 +144,21 @@ class FollowupTests(unittest.TestCase):
         self.assertEqual(receipt["source_subdirectory"], "skills/neon-genie")
         self.assertEqual(receipt["source_repository_root"], str(repo))
 
+    def test_invalid_utf8_enclosing_root_drops_optional_provenance(self):
+        self.test_tracked_neon_hub_retains_repository_and_subtree()
+        repo = self.base / "neon"
+        hub = repo / "skills/neon-genie"
+        (repo / "SKILL.md").write_bytes(b"\xff")
+        transaction.install(hub, self.target, "neon-genie", True)
+        receipt = self.receipt()
+        for field in (
+            "repository", "source_repository_root", "source_subdirectory",
+            "source_commit", "source_dirty",
+        ):
+            self.assertIsNone(receipt[field], field)
+        for name in ("SKILL.md", "VERSION"):
+            self.assertEqual((self.target / name).read_bytes(), (hub / name).read_bytes())
+
     def test_partial_backup_never_published(self):
         self.install()
         self.install()

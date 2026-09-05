@@ -165,7 +165,7 @@ def install(source: Path, target: Path, kind: str, skip_checks: bool = False) ->
                 ] and (repo_root / "VERSION").read_bytes() == (
                     source / "VERSION"
                 ).read_bytes()
-            except OSError:
+            except (OSError, UnicodeError):
                 matching_root = False
             if tracked is not None and matching_root:
                 own_checkout = True
