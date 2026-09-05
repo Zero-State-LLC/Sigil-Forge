@@ -144,16 +144,18 @@ def install(source: Path, target: Path, kind: str, skip_checks: bool = False) ->
         # Detect a concurrent change of target identity since staging began.
         if any(p.is_symlink() for p in (target.absolute(), *target.absolute().parents)):
             raise ValueError("target became a symlink during staging")
-        if target.exists():
-            os.replace(target, displaced)
         try:
+            if target.exists():
+                os.replace(target, displaced)
             os.replace(stage, target)
             for relative, content in expected.items():
                 if (target / relative).read_bytes() != content:
                     raise OSError(f"activation read-back mismatch: {relative}")
         except BaseException as original:
             try:
-                if target.exists():
+                # Infer completed renames from disk even if replace raised after
+                # its side effect. A still-staged package means target is not new.
+                if not stage.exists() and target.exists():
                     os.replace(target, workspace / "failed-package")
                 if displaced.exists():
                     os.replace(displaced, target)

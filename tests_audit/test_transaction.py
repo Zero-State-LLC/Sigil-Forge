@@ -1,6 +1,7 @@
 """Adversarial transactions: sandbox only, no mocked runtime successes."""
 
 import importlib.util
+import io
 import os
 import tempfile
 import unittest
@@ -114,6 +115,75 @@ class TransactionAudit(unittest.TestCase):
         recovered = list(self.target.parent.glob(".hyperlex-stage-*/previous/SKILL.md"))
         self.assertEqual(len(recovered), 1)
         self.assertEqual(recovered[0].read_text(), "old")
+
+    def check_interrupted_rename(self, boundary, after, recovery):
+        self.previous()
+        replace = os.replace
+        interrupted = False
+
+        def fail(src, dst):
+            nonlocal interrupted
+            src, dst = Path(src), Path(dst)
+            if src.name == "previous":
+                if recovery == "error":
+                    raise OSError("injected restoration failure")
+                if recovery == "interrupt-before":
+                    raise KeyboardInterrupt("restoration before rename")
+                if recovery == "interrupt-after":
+                    replace(src, dst)
+                    raise KeyboardInterrupt("restoration after rename")
+            at_boundary = (
+                dst.name == "previous" if boundary == "displacement"
+                else src.name == "package"
+            )
+            if at_boundary and not interrupted:
+                interrupted = True
+                if after:
+                    replace(src, dst)  # Real side effect before the exception.
+                raise KeyboardInterrupt("injected installation interruption")
+            return replace(src, dst)
+
+        needs_recovery = boundary == "activation" or after
+        retained = needs_recovery and recovery != "ok"
+        with (
+            patch.object(m.os, "replace", side_effect=fail),
+            patch("sys.stdout", new_callable=io.StringIO) as output,
+            self.assertRaises(RuntimeError if retained else KeyboardInterrupt) as caught,
+        ):
+            self.install()  # Explicit skip_checks=True; no fake runtime success.
+        self.assertTrue(interrupted)
+        self.assertNotIn("Installed", output.getvalue())
+        self.assertFalse((self.target.parent / ".test.install-lock").exists())
+        backups = list((self.root / "profile/backups").glob("*/*/*/SKILL.md"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(), "old")
+        workspaces = list(self.target.parent.glob(".*-stage-*"))
+        if retained:
+            self.assertEqual(len(workspaces), 1)
+            self.assertIn(str(workspaces[0]), str(caught.exception))
+            self.assertIn(str(backups[0].parent), str(caught.exception))
+            old = (self.target if recovery == "interrupt-after"
+                   else workspaces[0] / "previous")
+            self.assertEqual((old / "SKILL.md").read_text(), "old")
+        else:
+            self.assertEqual((self.target / "SKILL.md").read_text(), "old")
+            self.assertEqual(workspaces, [])
+
+    def test_interrupted_displacement_restores_previous(self):
+        self.check_interrupted_rename("displacement", True, "ok")
+
+    def test_interrupted_rename_boundaries(self):
+        for boundary in ("displacement", "activation"):
+            for after in (False, True):
+                for recovery in ("ok", "error", "interrupt-before", "interrupt-after"):
+                    with self.subTest(boundary=boundary, after=after, recovery=recovery):
+                        # Each fault gets an independent real filesystem sandbox.
+                        case = TransactionAudit()
+                        case.setUp()
+                        try:
+                            case.check_interrupted_rename(boundary, after, recovery)
+                        finally:
+                            case.doCleanups()
 
     def test_existing_lock_fails_closed(self):
         self.target.parent.mkdir(parents=True)
