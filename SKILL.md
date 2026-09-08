@@ -6,6 +6,7 @@ author: Daniel Meyer (scrimshawlife-ctrl), Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
+  author: Daniel Meyer (@scrimshawlife-ctrl) / Zero State LLC
   hermes:
     tags:
       - Creative
