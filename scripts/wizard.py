@@ -887,6 +887,12 @@ def create_session(path: str = "quick") -> dict[str, Any]:
 def load_session(session_id: str) -> dict[str, Any]:
     sp = session_path(session_id)
     if not sp.is_file():
+        # Read legacy package sessions without deleting or moving operator data.
+        from paths import skill_root
+        legacy = skill_root() / "out" / "wizard-sessions" / f"{_safe_session_id(session_id)}.json"
+        if legacy.is_file():
+            sp = legacy
+    if not sp.is_file():
         raise FileNotFoundError(f"session not found: {session_id}")
     data = json.loads(sp.read_text(encoding="utf-8"))
     if not isinstance(data, dict):

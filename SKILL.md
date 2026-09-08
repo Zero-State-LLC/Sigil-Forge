@@ -3,7 +3,7 @@ name: sigil-forge
 description: Forge offline intent glyphs into encrypted wallpapers.
 version: 0.13.1
 author: Daniel Meyer (scrimshawlife-ctrl), Hermes Agent
-license: MIT
+license: LicenseRef-Zero-State-Proprietary-1.0
 platforms: [linux, macos, windows]
 metadata:
   hermes:
@@ -26,7 +26,7 @@ Standalone Hermes skill (not a plugin). Hermes loads this directory;
 **Product:** the **wallpaper PNG** is the deliverable. Corpus methods forge
 immutable glyph geometry; intent and method provenance are **encrypted into
 the image** (SF12 vault). Packets are workspace. Install:
-`bash install.sh` → `~/.hermes/skills/sigil-forge`.
+`bash install.sh` → `${HERMES_HOME:-$HOME/.hermes}/skills/sigil-forge`.
 
 Default framing is a creative / focus tool. Optional `practice` mode changes
 tone only. Methods are craft and encoding — never proof of metaphysics. Never
@@ -57,7 +57,7 @@ claim the sigil works, causes events, or replaces professional help.
 - Python 3.10+ stdlib. No required pip packages. Optional: `jsonschema`,
   external SVG raster, `argon2-cffi`
 - Honor `HERMES_SKILL_DIR` when set; write under `--out` or
-  `out/sigil-forge/<run-id>/`
+  the active profile’s `state/sigil-forge/products/<run-id>/` (see state overrides below).
 - Optional `SIGIL_FORGE_PASSPHRASE` for sealed vault / packet (prefer env
   over `--passphrase`; argv is visible in process lists)
 - Optional `SIGIL_FORGE_BG_COMMAND` host-AI background template
@@ -84,7 +84,7 @@ terminal(command="python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wizard --ne
 When `next.done` is true:
 
 ```
-terminal(command="python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wizard --apply answers.json --path quick --out out/sigil-forge", timeout=120)
+terminal(command="python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wizard --session <id> --path quick --out out/sigil-forge", timeout=120)
 terminal(command="python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py verify out/sigil-forge/<run-id>/glyph.svg", timeout=60)
 ```
 
@@ -117,7 +117,7 @@ python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py construct --intent "…" --ou
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py construct --intent "…" --wallpaper --surface phone_lock --out out/sigil-forge
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wizard --session-new --path quick
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wizard --next --session <id> --answers-json '{…}'
-python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wizard --apply answers.json --path quick --out out/sigil-forge
+python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wizard --session <id> --path quick --out out/sigil-forge
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py verify out/sigil-forge/<run-id>/glyph.svg
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wallpaper --run out/sigil-forge/<run-id> --surface phone_lock --mode focus
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py open --wallpaper out/sigil-forge/<run-id>/wallpaper/phone-lock.png --json
@@ -222,3 +222,5 @@ Each step ends with a checkable completion criterion.
 
 Method depth lives in `references/` (Spare, kamea, bind-runes, Rose Cross,
 wallpaper, wizard, PoI, safety). Do not invent cipher tables.
+
+Source, profile, and migration rules: `references/source-and-upgrades.md`.

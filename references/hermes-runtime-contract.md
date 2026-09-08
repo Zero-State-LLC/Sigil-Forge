@@ -28,13 +28,18 @@ Optional thin plugin adapters later must wrap this skill, not replace it.
 1. `HERMES_SKILL_DIR` if set  
 2. Else install/clone directory containing this skill  
 
-Default out: `out/sigil-forge/<run-id>/` or `--out`.  
-Wizard sessions: `out/wizard-sessions/<id>.json`.  
+Default out: `$HERMES_HOME/state/sigil-forge/products/<run-id>/`.
+`SIGIL_FORGE_STATE_DIR` overrides the state root, yielding
+`$SIGIL_FORGE_STATE_DIR/products/<run-id>/`; explicit `--out` overrides the product root.
+`HERMES_HOME` defaults to `~/.hermes`.
+Wizard sessions: `$HERMES_HOME/state/sigil-forge/wizard-sessions/<id>.json`
+(or `$SIGIL_FORGE_STATE_DIR/wizard-sessions/<id>.json`).
+Legacy skill-root `out/wizard-sessions` are read for compatibility only.
 `run-id` = timestamp + short digest prefix.
 
 ## Artifact rule
 
-- Write under user-chosen directory or skill `out/`.  
+- Write under the user-chosen directory or external state products directory.
 - **Never mutate `references/`** during ordinary runs.  
 - Prefer hash-based run paths so listings do not leak full intent text.
 

@@ -13,7 +13,11 @@ def skill_root() -> Path:
 
 
 def default_out_dir() -> Path:
-    return skill_root() / "out" / "sigil-forge"
+    state = os.environ.get("SIGIL_FORGE_STATE_DIR")
+    if state:
+        return Path(state).expanduser().resolve() / "products"
+    home = Path(os.environ.get("HERMES_HOME") or str(Path.home() / ".hermes"))
+    return home.expanduser().resolve() / "state" / "sigil-forge" / "products"
 
 
 def make_run_id(digest_hex: str, when: datetime | None = None) -> str:

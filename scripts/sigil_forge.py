@@ -1325,7 +1325,7 @@ def main(argv: list[str] | None = None) -> int:
     pc.add_argument(
         "--out",
         default=None,
-        help="Output root (default: out/sigil-forge under skill root)",
+        help="Output root (default: $HERMES_HOME/state/sigil-forge/products; override: $SIGIL_FORGE_STATE_DIR/products; HERMES_HOME defaults to ~/.hermes)",
     )
     pc.add_argument(
         "--passphrase",
@@ -1609,7 +1609,7 @@ def main(argv: list[str] | None = None) -> int:
     pwz.add_argument(
         "--session-new",
         action="store_true",
-        help="Create a resume session under out/wizard-sessions/ and return first step",
+        help="Create a resume session under the external state wizard-sessions/ directory and return first step",
     )
     pwz.add_argument(
         "--session",
@@ -1649,7 +1649,7 @@ def main(argv: list[str] | None = None) -> int:
     pwz.add_argument(
         "--out",
         default=None,
-        help="Output root for --apply (default: out/sigil-forge)",
+        help="Output root for --apply (default: $HERMES_HOME/state/sigil-forge/products; override: $SIGIL_FORGE_STATE_DIR/products; HERMES_HOME defaults to ~/.hermes)",
     )
     pwz.add_argument(
         "--passphrase",
