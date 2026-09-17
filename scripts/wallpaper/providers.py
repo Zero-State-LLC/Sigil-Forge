@@ -3,11 +3,11 @@
 Background sources (``background_method``):
   - ``procedural`` — pure-Python atmosphere (default, no network)
   - ``operator_supplied`` — local PNG path via ``--background``
-  - ``ai_generated`` — host-provided AI image (file and/or shell command)
+  - ``ai_generated`` — host-provided AI image (file and/or command)
 
 The skill never calls a commercial image API directly. Hosts wire tools via:
   - ``--background PATH`` (pre-rendered PNG from any tool)
-  - ``--provider-command`` / env ``SIGIL_FORGE_BG_COMMAND`` (shell template)
+  - ``--provider-command`` / env ``SIGIL_FORGE_BG_COMMAND`` (executable + args template)
   - prompt package always written under ``wallpaper/background-prompt-*.json``
 
 Provider ids recorded in wallpaper-spec.generation.provider:
@@ -17,6 +17,7 @@ Provider ids recorded in wallpaper-spec.generation.provider:
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -87,7 +88,15 @@ def run_host_command(
     surface: str,
     timeout_s: float = 300.0,
 ) -> tuple[bool, str, str]:
-    """Run host shell command. Returns (ok, expanded_cmd, error_message)."""
+    """Run host provider command without a shell.
+
+    Returns (ok, expanded_cmd, error_message).
+
+    The expanded template is parsed with ``shlex.split`` and executed via
+    ``subprocess.run(..., shell=False)``. Shell metacharacters, pipes, and
+    redirects are not supported — operators should pass an executable plus
+    argument template (quote path placeholders when paths may contain spaces).
+    """
     expanded = expand_provider_command(
         template,
         prompt_path=prompt_path,
@@ -98,10 +107,15 @@ def run_host_command(
         surface=surface,
     )
     try:
-        # shell=True so operators can use pipes; template is operator-controlled.
+        args = shlex.split(expanded, posix=True)
+    except ValueError as exc:
+        return False, expanded, f"provider command parse error: {exc}"
+    if not args:
+        return False, expanded, "provider command is empty after parsing"
+    try:
         proc = subprocess.run(
-            expanded,
-            shell=True,
+            args,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=timeout_s,
@@ -129,8 +143,12 @@ def load_background_image(
     """Load PNG as RGB buffer sized to canvas.
 
     Exact-size match preferred; otherwise nearest-neighbor resize when allowed.
+    Absolute and relative operator paths are allowed; NUL bytes are rejected.
     """
-    path = Path(path)
+    raw = os.fspath(path)
+    if "\x00" in raw:
+        return None
+    path = Path(raw)
     if not path.is_file():
         return None
     # Exact path first (historical helper)
