@@ -17,7 +17,6 @@ import base64
 import json
 import re
 from typing import Any, TypedDict
-from xml.etree import ElementTree as ET
 
 EPS = 0.001
 
