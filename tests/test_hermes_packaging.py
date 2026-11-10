@@ -243,3 +243,31 @@ def test_stdlib_frontmatter_parse_fails_closed(frontmatter):
     with pytest.raises(ValueError):
         v._parse_minimal_yaml(frontmatter)
 
+
+def test_install_source_path_is_not_evaluated_as_code(tmp_path: Path):
+    """A checkout path with quotes must not break out of the syntax-check snippet."""
+    import shutil
+
+    marker = tmp_path / "injected"
+    src = tmp_path / f"sf'''+open({str(marker)!r},'w').close()+r'''"
+    shutil.copytree(
+        ROOT,
+        src,
+        ignore=shutil.ignore_patterns(".git", "out", "__pycache__", ".pytest_cache"),
+    )
+    r = subprocess.run(
+        [
+            "bash",
+            str(src / "install.sh"),
+            "--dry-run",
+            "--allow-outside-home",
+            "--target",
+            str(tmp_path / "dest"),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path),
+    )
+    assert not marker.exists(), "checkout path was executed as Python"
+    assert r.returncode == 0, r.stderr + r.stdout
+    assert "Source validation OK" in r.stdout

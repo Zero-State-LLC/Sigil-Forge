@@ -143,7 +143,8 @@ validate_source() {
   for f in "${required[@]}"; do
     [[ -f "${ROOT}/${f}" ]] || die "missing required file: ${f}"
   done
-  python3 -c "import ast, pathlib; ast.parse(pathlib.Path(r'''${ROOT}/scripts/sigil_forge.py''').read_text())" \
+  python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
+    "${ROOT}/scripts/sigil_forge.py" \
     || die "scripts/sigil_forge.py failed syntax check"
   # Frontmatter hygiene before copy (fail closed on bad skill packaging)
   if ! python3 "${ROOT}/scripts/validate_hermes_skill.py" >/dev/null; then
