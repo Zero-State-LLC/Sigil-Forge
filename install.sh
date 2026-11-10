@@ -66,11 +66,15 @@ while [[ $# -gt 0 ]]; do
 done
 
 validate_target() {
-  python3 - "$TARGET" <<'PY'
+  python3 - "$TARGET" "${ROOT}/scripts" <<'PY'
 import sys
 from pathlib import Path
-p = Path(sys.argv[1]).expanduser().absolute()
-if not sys.argv[1].strip() or any(q.is_symlink() for q in (p, *p.parents)):
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[2])
+from install_transaction import untrusted_symlink
+# Root-placed system links (macOS /tmp, a symlinked /home) are fine; a link a
+# normal user could have planted on the way to the target is not.
+if not sys.argv[1].strip() or untrusted_symlink(Path(sys.argv[1]).expanduser()):
     raise SystemExit("refusing empty or symlinked target path")
 PY
 
@@ -82,7 +86,9 @@ PY
     resolved="$(resolve_path "$parent")/${base}"
   else
     # dry-run or missing parent: still normalize for display/validation
-    resolved="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$TARGET")"
+    # realpath resolves the part that exists, so this compares like-for-like
+    # with the resolved $HOME below when a system prefix is a symlink.
+    resolved="$(python3 -c 'import os,sys; print(os.path.realpath(os.path.expanduser(sys.argv[1])))' "$TARGET")"
   fi
   TARGET="$resolved"
 

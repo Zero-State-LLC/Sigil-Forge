@@ -6,7 +6,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
@@ -196,3 +196,38 @@ class TransactionAudit(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SymlinkPolicy(unittest.TestCase):
+    """Only links root placed in a root-only directory are tolerated."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / "real").mkdir()
+        (self.root / "link").symlink_to(self.root / "real", target_is_directory=True)
+
+    def test_user_planted_link_is_untrusted(self):
+        self.assertFalse(m._system_symlink(self.root / "link"))
+        self.assertEqual(
+            m.untrusted_symlink(self.root / "link" / "skills" / "x"),
+            self.root / "link",
+        )
+
+    def test_plain_path_has_no_untrusted_link(self):
+        self.assertIsNone(m.untrusted_symlink(self.root / "real" / "skills" / "x"))
+
+    def test_root_never_trusts_a_link(self):
+        with patch.object(m.os, "geteuid", return_value=0):
+            self.assertFalse(m._system_symlink(Path("/tmp")))
+
+    def test_link_in_shared_writable_directory_is_untrusted(self):
+        root_owned = Mock(st_uid=0, st_mode=0o40777)
+        with patch.object(Path, "lstat", return_value=root_owned):
+            self.assertFalse(m._system_symlink(Path("/anything/link")))
+        root_only = Mock(st_uid=0, st_mode=0o40755)
+        with patch.object(Path, "lstat", return_value=root_only), patch.object(
+            m.os, "geteuid", return_value=501
+        ):
+            self.assertTrue(m._system_symlink(Path("/anything/link")))
