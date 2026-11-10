@@ -1,0 +1,7 @@
+# Optional extras. Nothing here is needed for the core path.
+#   PyYAML       full YAML parse in scripts/validate_hermes_skill.py
+#   jsonschema   stricter packet validation
+#   argon2-cffi  Argon2id sealing (--kdf argon2id / auto)
+PyYAML==6.0.3
+jsonschema==4.26.0
+argon2-cffi==25.1.0

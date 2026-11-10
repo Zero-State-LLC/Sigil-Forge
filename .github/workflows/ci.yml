@@ -2,25 +2,47 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  test:
+    name: tests (python ${{ matrix.python }}, ${{ matrix.deps }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The README promises a stdlib-only core path, so one leg installs
+          # nothing but the test runner on the oldest supported Python.
+          - python: "3.10"
+            deps: stdlib
+          - python: "3.13"
+            deps: optional
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        # Add your project's dependencies here, e.g.:
-        # pip install -r requirements.txt
-    - name: Run tests
-      run: |
-        # Add your test command here, e.g.:
-        # pytest
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install test runner
+        run: python -m pip install -r requirements-dev.txt
+      - name: Install optional dependencies
+        if: matrix.deps == 'optional'
+        run: python -m pip install -r requirements-optional.txt
+      - name: Hermes frontmatter
+        run: python3 scripts/validate_hermes_skill.py
+      - name: Tests
+        run: python3 -m pytest -q
+      - name: Install preview
+        run: bash install.sh --dry-run
