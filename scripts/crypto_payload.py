@@ -8,7 +8,9 @@ from typing import Any
 
 from aes_gcm_pure import aes_gcm_decrypt, aes_gcm_encrypt
 
-DEFAULT_PBKDF2_ITERATIONS = 200_000
+# OWASP Password Storage Cheat Sheet floor for PBKDF2-HMAC-SHA256. Blobs record
+# their own count, so images sealed at the earlier 200,000 still open.
+DEFAULT_PBKDF2_ITERATIONS = 600_000
 MAX_PBKDF2_ITERATIONS = 1_000_000
 _SALT_LEN = 16
 _NONCE_LEN = 12  # standard 96-bit GCM IV
@@ -17,6 +19,10 @@ _REQUIRED_BLOB_KEYS = ("salt_b64", "nonce_b64", "ciphertext_b64")
 _ARGON2_TIME = 2
 _ARGON2_MEMORY_KIB = 64 * 1024
 _ARGON2_PARALLELISM = 2
+# Bounds for parameters read back from an untrusted blob.
+_ARGON2_MAX_TIME = 16
+_ARGON2_MAX_MEMORY_KIB = 1024 * 1024
+_ARGON2_MAX_PARALLELISM = 16
 
 
 def intent_digest(normalized: str) -> str:
@@ -32,12 +38,34 @@ def argon2_available() -> bool:
         return False
 
 
+def _argon2_params(params: dict[str, Any] | None) -> tuple[int, int, int]:
+    """Argon2id cost parameters: the blob's own if recorded, else the defaults."""
+    if params is None:
+        return _ARGON2_TIME, _ARGON2_MEMORY_KIB, _ARGON2_PARALLELISM
+    if not isinstance(params, dict):
+        raise ValueError("argon2 parameters must be an object")
+    try:
+        time_cost = int(params.get("time_cost", _ARGON2_TIME))
+        memory_kib = int(params.get("memory_kib", _ARGON2_MEMORY_KIB))
+        parallelism = int(params.get("parallelism", _ARGON2_PARALLELISM))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"invalid argon2 parameters: {params!r}") from exc
+    if not (
+        1 <= time_cost <= _ARGON2_MAX_TIME
+        and 8 <= memory_kib <= _ARGON2_MAX_MEMORY_KIB
+        and 1 <= parallelism <= _ARGON2_MAX_PARALLELISM
+    ):
+        raise ValueError(f"argon2 parameters out of range: {params!r}")
+    return time_cost, memory_kib, parallelism
+
+
 def derive_key(
     passphrase: str,
     salt: bytes,
     iterations: int = DEFAULT_PBKDF2_ITERATIONS,
     *,
     kdf: str = "pbkdf2-sha256",
+    argon2_params: dict[str, Any] | None = None,
 ) -> bytes:
     """Derive 32-byte AES key. kdf: pbkdf2-sha256 (default) or argon2id if installed."""
     kdf = (kdf or "pbkdf2-sha256").lower()
@@ -48,12 +76,13 @@ def derive_key(
             raise ValueError(
                 "argon2id requested but argon2 package not installed; use pbkdf2-sha256"
             ) from exc
+        time_cost, memory_kib, parallelism = _argon2_params(argon2_params)
         return hash_secret_raw(
             secret=passphrase.encode("utf-8"),
             salt=salt,
-            time_cost=_ARGON2_TIME,
-            memory_cost=_ARGON2_MEMORY_KIB,
-            parallelism=_ARGON2_PARALLELISM,
+            time_cost=time_cost,
+            memory_cost=memory_kib,
+            parallelism=parallelism,
             hash_len=32,
             type=Type.ID,
         )
@@ -174,6 +203,6 @@ def open_intent(blob: dict[str, Any], passphrase: str) -> str:
             )
         key = derive_key(passphrase, salt, iterations, kdf=kdf)
     else:
-        key = derive_key(passphrase, salt, kdf=kdf)
+        key = derive_key(passphrase, salt, kdf=kdf, argon2_params=blob.get("argon2"))
     pt = aes_gcm_decrypt(key, nonce, ct, tag)
     return pt.decode("utf-8")
