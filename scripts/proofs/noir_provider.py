@@ -17,8 +17,7 @@ from typing import Any
 
 from paths import skill_root
 from proofs.base import ProofResult
-from proofs.manifest import file_digest
-from proofs.zk_commit import MAX_INTENT_BYTES, pad_intent, zk_commit
+from proofs.zk_commit import pad_intent, zk_commit
 
 
 class NoirProvider:

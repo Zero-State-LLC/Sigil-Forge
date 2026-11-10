@@ -14,7 +14,7 @@ from kamea import (
     select_square,
 )
 from rose_cross import build_rose_cross_path
-from spare import letter_sequence, reduce_letters, run_spare
+from spare import run_spare
 
 # Canvas is always 0..100
 CANVAS = 100.0

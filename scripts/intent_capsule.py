@@ -6,13 +6,11 @@ and commitment nonce. Requires passphrase.
 
 from __future__ import annotations
 
-import base64
 import json
 from datetime import datetime, timezone
 from typing import Any
 
 from commitment import (
-    commit_intent,
     nonce_b64,
     nonce_from_b64,
     public_commitment,

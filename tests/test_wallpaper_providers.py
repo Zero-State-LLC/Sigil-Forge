@@ -15,7 +15,6 @@ from wallpaper.providers import (
     enrich_prompt_package,
     expand_provider_command,
     load_background_image,
-    resolve_background,
 )
 
 ROOT = Path(__file__).resolve().parents[1]

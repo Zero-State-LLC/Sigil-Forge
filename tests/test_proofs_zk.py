@@ -10,11 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from commitment import commit_intent
 from construct import run as construct_run
-from proofs.local_knowledge import LocalCapsuleProvider
 from proofs.noir_provider import NoirProvider
-from proofs.registry import get_provider, list_providers
+from proofs.registry import list_providers
 from proofs.verify_run import verify_proof_run
 from proofs.zk_commit import MAX_INTENT_BYTES, pad_intent, verify_zk_commit, zk_commit
 
@@ -72,7 +70,6 @@ def test_construct_zk_knowledge_local_attestation(tmp_path: Path):
     else:
         # When noir skipped, manifest is noir skip — re-verify using local provider
         from proofs.local_knowledge import LocalCapsuleProvider
-        from intent_capsule import open_capsule
 
         att = run / "proofs" / "knowledge-attestation.json"
         # re-write manifest for local if noir skipped

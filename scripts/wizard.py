@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import default_out_dir, ensure_private_dir, skill_root, write_private_text
+from paths import default_out_dir, ensure_private_dir, write_private_text
 from policy_lint import detect_authority_seal_request
 from safety import check_intent
 

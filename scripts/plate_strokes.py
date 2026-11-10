@@ -16,7 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from kamea import KAMEA_SQUARES, PLANET_ORDER
+from kamea import KAMEA_SQUARES
 from paths import skill_root
 
 PLATE_REL = Path("references") / "planetary-plate-strokes.json"

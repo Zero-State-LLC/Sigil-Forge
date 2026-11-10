@@ -12,7 +12,7 @@ Encodings:
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 # Stable Chaldean order: Saturn 3 … Luna 9
 PLANET_ORDER: tuple[str, ...] = (

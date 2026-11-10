@@ -10,7 +10,7 @@ from typing import Any
 
 from artifact_root import build_sigil_root
 from commitment import commit_intent, public_commitment
-from crypto_payload import resolve_kdf, seal_intent
+from crypto_payload import seal_intent
 from forge_core import ForgeConfig, compute_forge
 from forge_manifest import build_forge_manifest, write_manifest
 from phonetic import build_phonetic_artifact
