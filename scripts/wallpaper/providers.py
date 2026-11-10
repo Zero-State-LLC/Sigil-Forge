@@ -92,13 +92,13 @@ def run_host_command(
 
     Returns (ok, expanded_cmd, error_message).
 
-    The expanded template is parsed with ``shlex.split`` and executed via
-    ``subprocess.run(..., shell=False)``. Shell metacharacters, pipes, and
-    redirects are not supported — operators should pass an executable plus
-    argument template (quote path placeholders when paths may contain spaces).
+    The template is parsed with ``shlex.split`` first and placeholders are
+    expanded inside each argument afterwards, so a path containing spaces or
+    quotes stays one argument and can never add arguments of its own. It runs
+    via ``subprocess.run(..., shell=False)``: shell metacharacters, pipes, and
+    redirects are not supported.
     """
-    expanded = expand_provider_command(
-        template,
+    values = dict(
         prompt_path=prompt_path,
         out_path=out_path,
         width=width,
@@ -106,8 +106,12 @@ def run_host_command(
         seed=seed,
         surface=surface,
     )
+    expanded = expand_provider_command(template, **values)
     try:
-        args = shlex.split(expanded, posix=True)
+        args = [
+            expand_provider_command(arg, **values)
+            for arg in shlex.split(template, posix=True)
+        ]
     except ValueError as exc:
         return False, expanded, f"provider command parse error: {exc}"
     if not args:

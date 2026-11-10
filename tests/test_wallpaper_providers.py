@@ -232,3 +232,33 @@ def test_enrich_prompt_package_keys():
     assert pkg["canvas"] == {"width": 10, "height": 20}
     assert pkg["seed"] == 3
     assert pkg["output_hint"] == "/tmp/bg.png"
+
+
+def test_host_command_path_with_spaces_and_quotes_stays_one_argument(tmp_path: Path):
+    """A path must never split into, or inject, extra provider arguments."""
+    import json
+    import sys
+
+    from wallpaper.providers import run_host_command
+
+    odd = tmp_path / "my runs; --extra 'x'"
+    odd.mkdir()
+    out_path = odd / "bg.png"
+    recorder = tmp_path / "rec.py"
+    recorder.write_text(
+        "import json, sys\n"
+        "open(sys.argv[3], 'w').write(json.dumps(sys.argv[1:]))\n",
+        encoding="utf-8",
+    )
+    ok, _, err = run_host_command(
+        f"{sys.executable} {recorder} --prompt {{prompt_path}} {{out_path}} -w {{width}}",
+        prompt_path=odd / "p.json",
+        out_path=out_path,
+        width=8,
+        height=8,
+        seed=1,
+        surface="desktop",
+    )
+    assert ok, err
+    argv = json.loads(out_path.read_text())
+    assert argv == ["--prompt", str(odd / "p.json"), str(out_path), "-w", "8"]
