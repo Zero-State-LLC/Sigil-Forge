@@ -17,7 +17,14 @@ from pathlib import Path
 from typing import Any
 
 from crypto_payload import open_intent, seal_intent
-from stego_png import DIGEST_LEN, embed_lsb, extract_lsb, read_rgb_png, write_rgb_png
+from stego_png import (
+    DIGEST_LEN,
+    embed_lsb,
+    extract_lsb,
+    inflate_bounded,
+    read_rgb_png,
+    write_rgb_png,
+)
 
 SF12_MAGIC = b"SF12"
 SF12_VERSION = 1
@@ -26,6 +33,9 @@ SF12_FLAG_ROOT = 1 << 1
 SF12_FLAG_VAULT = 1 << 2
 # fixed header before sealed: magic4 + ver1 + flags1 + digest32 + root32 + sealed_len4
 SF12_HEADER_LEN = 4 + 1 + 1 + 32 + 32 + 4
+# A carrier image is untrusted input. extract_payload_from_png caps the
+# compressed payload at 512 kB; cap what it may inflate to as well.
+SF12_MAX_SEALED_JSON = 8 * 1024 * 1024
 
 
 def _hex32(h: str, *, name: str = "digest") -> bytes:
@@ -190,7 +200,7 @@ def unpack_sf12(payload: bytes) -> dict[str, Any]:
     crc_exp = zlib.crc32(body) & 0xFFFFFFFF
     if crc_got != crc_exp:
         raise ValueError("SF12 CRC mismatch")
-    sealed_json = zlib.decompress(sealed_z)
+    sealed_json = inflate_bounded(sealed_z, SF12_MAX_SEALED_JSON)
     sealed_blob = json.loads(sealed_json.decode("utf-8"))
     return {
         "format": "SF12",
