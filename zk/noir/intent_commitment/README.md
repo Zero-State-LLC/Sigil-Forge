@@ -7,6 +7,17 @@ Public input: `SHA-256(nonce || intent_bytes[256])`
 
 Matches `scripts/proofs/zk_commit.py` (`sha256-nonce-pad256-v1`).
 
+## Status: experimental
+
+This path targets the older `nargo prove` / `nargo verify` commands. Current
+Noir releases moved proving and verification out of nargo into a separate
+backend (`nargo execute` for the witness, then `bb prove` / `bb verify`), so
+with a current toolchain `--proof zk-knowledge` records `status: failed` for
+the Noir step and falls back to the local capsule attestation. `verify` only
+accepts a proof that is byte-identical to the one in this directory, because
+`nargo verify` checks the directory, not a file you pass it. Treat a Noir
+result as provenance only until the provider is ported.
+
 ## Requirements
 
 - [nargo](https://noir-lang.org/) installed

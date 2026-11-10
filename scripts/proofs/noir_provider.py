@@ -33,6 +33,15 @@ class NoirProvider:
     def _circuit_dir(self) -> Path:
         return skill_root() / "zk" / "noir" / "intent_commitment"
 
+    @staticmethod
+    def _circuit_proof(circuit: Path) -> Path | None:
+        """The proof file nargo last wrote for this circuit, if any."""
+        named = circuit / "proofs" / "intent_commitment.proof"
+        if named.is_file():
+            return named
+        candidates = sorted((circuit / "proofs").glob("*.proof"))
+        return candidates[0] if candidates else None
+
     def prove(
         self,
         witness: dict[str, Any],
@@ -142,15 +151,9 @@ class NoirProvider:
             prover_toml.unlink(missing_ok=True)
 
         # Copy proof artifact if present
-        proof_src = circuit / "proofs" / "intent_commitment.proof"
-        if not proof_src.is_file():
-            # alternate locations
-            candidates = list((circuit / "proofs").glob("*.proof")) if (
-                circuit / "proofs"
-            ).is_dir() else []
-            proof_src = candidates[0] if candidates else proof_src
+        proof_src = self._circuit_proof(circuit)
         proof_dst = out / "intent-proof.bin"
-        if proof_src.is_file():
+        if proof_src is not None:
             proof_dst.write_bytes(proof_src.read_bytes())
         else:
             # Still record prover inputs for debugging when proof file missing
@@ -189,6 +192,18 @@ class NoirProvider:
         if not self.available():
             return False
         circuit = self._circuit_dir()
+        # ``nargo verify`` checks whatever proof currently sits in the circuit
+        # directory. Only trust its answer for the artifact we were handed.
+        staged = self._circuit_proof(circuit)
+        try:
+            if (
+                proof_path is None
+                or staged is None
+                or Path(proof_path).read_bytes() != staged.read_bytes()
+            ):
+                return False
+        except OSError:
+            return False
         try:
             proc = subprocess.run(
                 ["nargo", "verify"],

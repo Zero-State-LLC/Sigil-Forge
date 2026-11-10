@@ -204,3 +204,23 @@ def test_noir_witness_is_private_and_removed(tmp_path, monkeypatch, prove_exit):
     assert (circuit / "witness-mode").read_text().strip() == "600"
     # ... and it does not outlive the call, on success or failure.
     assert not (circuit / "Prover.toml").exists()
+
+
+def test_noir_verify_is_bound_to_the_proof_it_is_given(tmp_path, monkeypatch):
+    """nargo verify succeeding must not vouch for a different proof file."""
+    circuit = tmp_path / "skill" / "zk" / "noir" / "intent_commitment"
+    (circuit / "proofs").mkdir(parents=True)
+    (circuit / "proofs" / "intent_commitment.proof").write_bytes(b"proof-A")
+    _fake_nargo(tmp_path / "bin", prove_exit=0)  # verify exits 0 for anything
+    monkeypatch.setenv("HERMES_SKILL_DIR", str(tmp_path / "skill"))
+    monkeypatch.setenv("PATH", f"{tmp_path / 'bin'}{os.pathsep}{os.environ['PATH']}")
+
+    same = tmp_path / "same.bin"
+    same.write_bytes(b"proof-A")
+    other = tmp_path / "other.bin"
+    other.write_bytes(b"proof-B")
+    n = NoirProvider()
+    assert n.verify(same, {}) is True
+    assert n.verify(other, {}) is False
+    assert n.verify(tmp_path / "missing.bin", {}) is False
+    assert n.verify(None, {}) is False
