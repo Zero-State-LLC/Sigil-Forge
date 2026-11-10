@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"
 INSTALL = ROOT / "install.sh"
@@ -196,3 +198,48 @@ def test_help_points_to_installed_docs():
     assert "hermes-runtime-contract" in out
     assert "proof-of-intent" in out
     assert "docs/superpowers" not in out
+
+
+def _frontmatter_raw() -> str:
+    text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    return text.split("---", 2)[1]
+
+
+def test_validator_passes_without_pyyaml(monkeypatch):
+    """README promises a stdlib-only core path; install.sh runs this validator."""
+    import validate_hermes_skill as v
+
+    monkeypatch.setattr(v, "yaml", None)
+    report = v.validate()
+    assert report["ok"] is True, report["errors"]
+    fm, _ = v._parse_frontmatter((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+    assert fm["platforms"] == ["linux", "macos", "windows"]
+    assert fm["metadata"]["hermes"]["related_skills"] == []
+    assert "Sigil" in fm["metadata"]["hermes"]["tags"]
+
+
+def test_stdlib_frontmatter_parse_matches_pyyaml():
+    yaml = pytest.importorskip("yaml")
+    import validate_hermes_skill as v
+
+    assert v._parse_minimal_yaml(_frontmatter_raw()) == yaml.safe_load(
+        _frontmatter_raw()
+    )
+
+
+@pytest.mark.parametrize(
+    "frontmatter",
+    [
+        "name: x\nmetadata: {hermes: {}}\n",  # flow mapping
+        "name: x\ndescription: >\n  folded\n",  # block scalar
+        "name: x\nplatforms: [linux, macos\n",  # unbalanced inline list
+        "name: x\n\tversion: 1\n",  # tab indentation
+        "name: x\n   stray\n",  # indentation with no parent key
+    ],
+)
+def test_stdlib_frontmatter_parse_fails_closed(frontmatter):
+    import validate_hermes_skill as v
+
+    with pytest.raises(ValueError):
+        v._parse_minimal_yaml(frontmatter)
+

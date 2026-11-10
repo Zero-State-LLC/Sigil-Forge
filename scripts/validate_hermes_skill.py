@@ -22,7 +22,7 @@ from pathlib import Path
 
 try:
     import yaml
-except ImportError:  # stdlib-only fallback: minimal key parse
+except ImportError:  # stdlib-only fallback: _parse_minimal_yaml
     yaml = None  # type: ignore
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -54,6 +54,64 @@ REQUIRED_SECTIONS = (
 )
 
 
+def _scalar(raw: str):
+    """Fallback scalar: quoted string, inline ``[a, b]`` list, or plain text."""
+    v = raw.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        return v[1:-1]
+    if v.startswith("[") and v.endswith("]"):
+        inner = v[1:-1].strip()
+        return [_scalar(item) for item in inner.split(",")] if inner else []
+    if v[:1] in ("{", "&", "*", "!", "|", ">", "["):
+        raise ValueError(
+            f"frontmatter value {v!r} needs a full YAML parser; install PyYAML"
+        )
+    return v
+
+
+def _parse_minimal_yaml(fm_raw: str) -> dict:
+    """Stdlib-only parse of the YAML subset SKILL.md frontmatter uses.
+
+    Nested block mappings, block lists of scalars, inline lists and plain or
+    quoted scalars. Anything else fails closed rather than being misread.
+    """
+    lines = []
+    for raw in fm_raw.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if "\t" in raw[: len(raw) - len(raw.lstrip())]:
+            raise ValueError("frontmatter must be indented with spaces")
+        lines.append((len(raw) - len(raw.lstrip(" ")), raw.strip()))
+
+    def block(i: int, indent: int):
+        if lines[i][1].startswith("- "):
+            items = []
+            while i < len(lines) and lines[i][0] == indent and lines[i][1].startswith("- "):
+                items.append(_scalar(lines[i][1][2:]))
+                i += 1
+            return items, i
+        out: dict = {}
+        while i < len(lines) and lines[i][0] == indent:
+            key, sep, rest = lines[i][1].partition(":")
+            if not sep or not key.strip() or (rest and not rest.startswith(" ")):
+                raise ValueError(f"unsupported frontmatter line: {lines[i][1]!r}")
+            i += 1
+            if rest.strip():
+                out[key.strip()] = _scalar(rest)
+            elif i < len(lines) and lines[i][0] > indent:
+                out[key.strip()], i = block(i, lines[i][0])
+            else:
+                out[key.strip()] = None
+        return out, i
+
+    if not lines:
+        return {}
+    fm, end = block(0, lines[0][0])
+    if end != len(lines) or not isinstance(fm, dict):
+        raise ValueError("unsupported frontmatter indentation")
+    return fm
+
+
 def _parse_frontmatter(text: str) -> tuple[dict, str]:
     if not text.startswith("---"):
         raise ValueError("SKILL.md must start with --- (no leading whitespace/BOM)")
@@ -65,14 +123,7 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
     if yaml is not None:
         fm = yaml.safe_load(fm_raw)
     else:
-        # Minimal fallback: only top-level scalars
-        fm = {}
-        for line in fm_raw.splitlines():
-            if ":" in line and not line.strip().startswith("#"):
-                k, _, v = line.partition(":")
-                k, v = k.strip(), v.strip().strip("\"'")
-                if k and not k.startswith(" "):
-                    fm[k] = v
+        fm = _parse_minimal_yaml(fm_raw)
     if not isinstance(fm, dict):
         raise ValueError("frontmatter is not a YAML mapping")
     return fm, body
