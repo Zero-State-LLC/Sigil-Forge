@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from commitment import commit_intent
 from construct import run as construct_run
@@ -162,3 +165,42 @@ def test_zk_forge_skips_via_risc0(tmp_path: Path):
     assert packet["proof"]["mode"] == "zk-forge"
     assert packet["proof"]["provider"] == "risc0"
     assert packet["proof"]["status"] in ("skipped", "generated", "failed")
+
+
+def _fake_nargo(bin_dir: Path, *, prove_exit: int) -> None:
+    """A stand-in nargo that records whether the witness was present."""
+    bin_dir.mkdir()
+    script = bin_dir / "nargo"
+    script.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = "prove" ]; then\n'
+        "  [ -f Prover.toml ] && stat -c %a Prover.toml > witness-mode 2>/dev/null"
+        " || stat -f %Lp Prover.toml > witness-mode\n"
+        f"  exit {prove_exit}\n"
+        "fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+
+
+@pytest.mark.parametrize("prove_exit", [0, 1])
+def test_noir_witness_is_private_and_removed(tmp_path, monkeypatch, prove_exit):
+    """Prover.toml holds plaintext intent + nonce: owner-only, gone after prove."""
+    circuit = tmp_path / "skill" / "zk" / "noir" / "intent_commitment"
+    circuit.mkdir(parents=True)
+    _fake_nargo(tmp_path / "bin", prove_exit=prove_exit)
+    monkeypatch.setenv("HERMES_SKILL_DIR", str(tmp_path / "skill"))
+    monkeypatch.setenv("PATH", f"{tmp_path / 'bin'}{os.pathsep}{os.environ['PATH']}")
+
+    res = NoirProvider().prove(
+        {"normalized_intent": "i maintain calm focus", "nonce": b"\x01" * 32},
+        {},
+        out_dir=tmp_path / "out",
+    )
+
+    assert res.status == ("generated" if prove_exit == 0 else "failed")
+    # nargo saw the witness, with no group/other access ...
+    assert (circuit / "witness-mode").read_text().strip() == "600"
+    # ... and it does not outlive the call, on success or failure.
+    assert not (circuit / "Prover.toml").exists()

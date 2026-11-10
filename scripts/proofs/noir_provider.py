@@ -9,6 +9,7 @@ Circuit lives under zk/noir/intent_commitment/.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -82,13 +83,16 @@ class NoirProvider:
         nonce_arr = ", ".join(str(b) for b in nonce)
         expected = bytes.fromhex(str(c_zk["value"]))
         expected_arr = ", ".join(str(b) for b in expected)
-        prover_toml.write_text(
-            f'intent_len = "{intent_len}"\n'
-            f"intent_bytes = [{intent_arr}]\n"
-            f"nonce = [{nonce_arr}]\n"
-            f"expected_commitment = [{expected_arr}]\n",
-            encoding="utf-8",
-        )
+        # The witness is the plaintext intent and the commitment nonce. Keep it
+        # owner-only while nargo needs it and never leave it in the skill tree.
+        fd = os.open(prover_toml, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(
+                f'intent_len = "{intent_len}"\n'
+                f"intent_bytes = [{intent_arr}]\n"
+                f"nonce = [{nonce_arr}]\n"
+                f"expected_commitment = [{expected_arr}]\n"
+            )
         try:
             # Compile + prove (nargo versions vary; try common commands)
             compile = subprocess.run(
@@ -134,6 +138,8 @@ class NoirProvider:
                 detail=f"nargo execution error: {exc}",
                 circuit_version=self.circuit_version,
             )
+        finally:
+            prover_toml.unlink(missing_ok=True)
 
         # Copy proof artifact if present
         proof_src = circuit / "proofs" / "intent_commitment.proof"
