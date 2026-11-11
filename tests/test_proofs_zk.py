@@ -203,6 +203,50 @@ def test_noir_witness_is_private_and_removed(tmp_path, monkeypatch, prove_exit):
     assert not (circuit / "Prover.toml").exists()
 
 
+def _prove_with_fake_nargo(tmp_path, monkeypatch):
+    circuit = tmp_path / "skill" / "zk" / "noir" / "intent_commitment"
+    circuit.mkdir(parents=True)
+    _fake_nargo(tmp_path / "bin", prove_exit=0)
+    monkeypatch.setenv("HERMES_SKILL_DIR", str(tmp_path / "skill"))
+    monkeypatch.setenv("PATH", f"{tmp_path / 'bin'}{os.pathsep}{os.environ['PATH']}")
+    return circuit
+
+
+def _prove(tmp_path):
+    return NoirProvider().prove(
+        {"normalized_intent": "i maintain calm focus", "nonce": b"\x01" * 32},
+        {},
+        out_dir=tmp_path / "out",
+    )
+
+
+def test_noir_witness_replaces_a_preexisting_loose_file(tmp_path, monkeypatch):
+    circuit = _prove_with_fake_nargo(tmp_path, monkeypatch)
+    stale = circuit / "Prover.toml"
+    stale.write_text("stale")
+    stale.chmod(0o644)
+
+    res = _prove(tmp_path)
+
+    assert res.status == "generated"
+    assert (circuit / "witness-mode").read_text().strip() == "600"
+    assert not stale.exists()
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs symlinks")
+def test_noir_witness_does_not_follow_a_symlink(tmp_path, monkeypatch):
+    circuit = _prove_with_fake_nargo(tmp_path, monkeypatch)
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep me")
+    (circuit / "Prover.toml").symlink_to(victim)
+
+    res = _prove(tmp_path)
+
+    assert res.status == "generated"
+    assert victim.read_text() == "keep me"
+    assert not (circuit / "Prover.toml").exists()
+
+
 def test_noir_verify_is_bound_to_the_proof_it_is_given(tmp_path, monkeypatch):
     """nargo verify succeeding must not vouch for a different proof file."""
     circuit = tmp_path / "skill" / "zk" / "noir" / "intent_commitment"

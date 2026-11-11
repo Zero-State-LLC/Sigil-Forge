@@ -59,3 +59,14 @@ def test_operator_chosen_directory_keeps_its_mode(tmp_path):
     os.chmod(existing, 0o755)
     paths.ensure_private_dir(existing)
     assert _mode(existing) == 0o755
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
+def test_write_private_text_tightens_and_leaves_no_temp_files(tmp_path):
+    session = tmp_path / "session.json"
+    session.write_text("old")
+    os.chmod(session, 0o644)
+    paths.write_private_text(session, "new")
+    assert session.read_text() == "new"
+    assert _mode(session) == 0o600
+    assert [p.name for p in tmp_path.iterdir()] == ["session.json"]

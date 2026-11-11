@@ -147,6 +147,11 @@ def test_argon2_blob_opens_with_its_recorded_parameters():
         {"memory_kib": 64 * 1024 * 1024},
         {"parallelism": 0},
         {"time_cost": "many"},
+        {"time_cost": float("inf")},
+        {"time_cost": 2.9},
+        {"parallelism": True},
+        {"memory_kib": 8, "parallelism": 16},
+        {"memory_kib": 512 * 1024},
         "not-an-object",
     ],
 )

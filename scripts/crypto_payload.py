@@ -21,7 +21,7 @@ _ARGON2_MEMORY_KIB = 64 * 1024
 _ARGON2_PARALLELISM = 2
 # Bounds for parameters read back from an untrusted blob.
 _ARGON2_MAX_TIME = 16
-_ARGON2_MAX_MEMORY_KIB = 1024 * 1024
+_ARGON2_MAX_MEMORY_KIB = 256 * 1024
 _ARGON2_MAX_PARALLELISM = 16
 
 
@@ -45,15 +45,19 @@ def _argon2_params(params: dict[str, Any] | None) -> tuple[int, int, int]:
     if not isinstance(params, dict):
         raise ValueError("argon2 parameters must be an object")
     try:
-        time_cost = int(params.get("time_cost", _ARGON2_TIME))
-        memory_kib = int(params.get("memory_kib", _ARGON2_MEMORY_KIB))
-        parallelism = int(params.get("parallelism", _ARGON2_PARALLELISM))
-    except (TypeError, ValueError) as exc:
+        time_cost = params.get("time_cost", _ARGON2_TIME)
+        memory_kib = params.get("memory_kib", _ARGON2_MEMORY_KIB)
+        parallelism = params.get("parallelism", _ARGON2_PARALLELISM)
+    except (TypeError, ValueError, OverflowError) as exc:
         raise ValueError(f"invalid argon2 parameters: {params!r}") from exc
+    for value in (time_cost, memory_kib, parallelism):
+        if type(value) is not int:
+            raise ValueError(f"invalid argon2 parameters: {params!r}")
     if not (
         1 <= time_cost <= _ARGON2_MAX_TIME
         and 8 <= memory_kib <= _ARGON2_MAX_MEMORY_KIB
         and 1 <= parallelism <= _ARGON2_MAX_PARALLELISM
+        and memory_kib >= 8 * parallelism
     ):
         raise ValueError(f"argon2 parameters out of range: {params!r}")
     return time_cost, memory_kib, parallelism

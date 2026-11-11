@@ -93,15 +93,21 @@ class NoirProvider:
         expected_arr = ", ".join(str(b) for b in expected)
         # The witness is the plaintext intent and the commitment nonce. Keep it
         # owner-only while nargo needs it and never leave it in the skill tree.
-        fd = os.open(prover_toml, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(
-                f'intent_len = "{intent_len}"\n'
-                f"intent_bytes = [{intent_arr}]\n"
-                f"nonce = [{nonce_arr}]\n"
-                f"expected_commitment = [{expected_arr}]\n"
-            )
         try:
+            # Fresh exclusive file: no inherited mode, no followed symlink.
+            prover_toml.unlink(missing_ok=True)
+            fd = os.open(
+                prover_toml,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(
+                    f'intent_len = "{intent_len}"\n'
+                    f"intent_bytes = [{intent_arr}]\n"
+                    f"nonce = [{nonce_arr}]\n"
+                    f"expected_commitment = [{expected_arr}]\n"
+                )
             # Compile + prove (nargo versions vary; try common commands)
             compile = subprocess.run(
                 ["nargo", "compile"],
