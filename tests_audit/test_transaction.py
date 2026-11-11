@@ -218,6 +218,15 @@ class SymlinkPolicy(unittest.TestCase):
     def test_plain_path_has_no_untrusted_link(self):
         self.assertIsNone(m.untrusted_symlink(self.root / "real" / "skills" / "x"))
 
+    def test_dotdot_after_link_is_not_collapsed(self):
+        tricky = self.root / "link" / ".." / "x"
+        self.assertIsNotNone(m.untrusted_symlink(tricky))
+        source = self.root / "src"
+        source.mkdir()
+        (source / "SKILL.md").write_text("x")
+        with self.assertRaises(ValueError):
+            m.install(source, tricky, "hyperlex", skip_checks=True)
+
     def test_root_never_trusts_a_link(self):
         with patch.object(m.os, "geteuid", return_value=0):
             self.assertFalse(m._system_symlink(Path("/tmp")))

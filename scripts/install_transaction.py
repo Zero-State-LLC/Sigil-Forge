@@ -63,7 +63,7 @@ def _system_symlink(link: Path) -> bool:
 
 def untrusted_symlink(target: Path) -> Path | None:
     """First symlink on the lexical path to ``target`` a non-root user controls."""
-    lexical = Path(os.path.abspath(target))
+    lexical = Path(target).absolute()  # not abspath: that collapses ".." past a link
     for p in (lexical, *lexical.parents):
         if p.is_symlink() and not _system_symlink(p):
             return p
