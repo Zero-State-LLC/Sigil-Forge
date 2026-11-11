@@ -85,3 +85,78 @@ def test_aes_gcm_tampered_tag_fails():
     bad_tag = bytes(b ^ 0x01 for b in tag)
     with pytest.raises(ValueError):
         aes_gcm_decrypt(key, iv, ct, bad_tag, b"")
+
+
+def test_pbkdf2_default_meets_owasp_floor():
+    import crypto_payload
+
+    assert crypto_payload.DEFAULT_PBKDF2_ITERATIONS >= 600_000
+    assert seal_intent("x", "pw")["iterations"] == crypto_payload.DEFAULT_PBKDF2_ITERATIONS
+
+
+def test_blob_sealed_at_previous_default_still_opens():
+    """Images sealed before the default rose record iterations=200000."""
+    import base64
+    import hashlib
+    import os
+
+    salt, nonce = os.urandom(16), os.urandom(12)
+    key = hashlib.pbkdf2_hmac("sha256", b"old-pass", salt, 200_000, dklen=32)
+    ct, tag = aes_gcm_encrypt(key, nonce, b"sealed last month")
+    blob = {
+        "alg": "aes-256-gcm",
+        "kdf": "pbkdf2-sha256",
+        "iterations": 200_000,
+        "salt_b64": base64.b64encode(salt).decode(),
+        "nonce_b64": base64.b64encode(nonce).decode(),
+        "ciphertext_b64": base64.b64encode(ct + tag).decode(),
+    }
+    assert open_intent(blob, "old-pass") == "sealed last month"
+
+
+def test_argon2_blob_opens_with_its_recorded_parameters():
+    """Decrypt must use the cost parameters in the blob, not today's defaults."""
+    pytest.importorskip("argon2")
+    import base64
+    import os
+
+    from argon2.low_level import Type, hash_secret_raw
+
+    salt, nonce = os.urandom(16), os.urandom(12)
+    params = {"time_cost": 1, "memory_kib": 8 * 1024, "parallelism": 1}
+    key = hash_secret_raw(
+        secret=b"pw", salt=salt, time_cost=1, memory_cost=8 * 1024,
+        parallelism=1, hash_len=32, type=Type.ID,
+    )
+    ct, tag = aes_gcm_encrypt(key, nonce, b"other parameters")
+    blob = {
+        "alg": "aes-256-gcm",
+        "kdf": "argon2id",
+        "argon2": params,
+        "salt_b64": base64.b64encode(salt).decode(),
+        "nonce_b64": base64.b64encode(nonce).decode(),
+        "ciphertext_b64": base64.b64encode(ct + tag).decode(),
+    }
+    assert open_intent(blob, "pw") == "other parameters"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"time_cost": 10_000},
+        {"memory_kib": 64 * 1024 * 1024},
+        {"parallelism": 0},
+        {"time_cost": "many"},
+        {"time_cost": float("inf")},
+        {"time_cost": 2.9},
+        {"parallelism": True},
+        {"memory_kib": 8, "parallelism": 16},
+        {"memory_kib": 512 * 1024},
+        "not-an-object",
+    ],
+)
+def test_argon2_parameters_from_blob_are_bounded(params):
+    import crypto_payload
+
+    with pytest.raises(ValueError):
+        crypto_payload._argon2_params(params)

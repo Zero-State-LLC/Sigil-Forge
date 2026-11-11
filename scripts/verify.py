@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from stego_png import DIGEST_LEN, MAGIC, extract_lsb, unpack_payload
+from stego_png import DIGEST_LEN, MAGIC, extract_lsb
 from stego_svg import expected_epsilon_bits
 from stego_svg import extract as extract_svg
 

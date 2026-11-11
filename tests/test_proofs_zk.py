@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-from commitment import commit_intent
+import pytest
+
 from construct import run as construct_run
-from proofs.local_knowledge import LocalCapsuleProvider
 from proofs.noir_provider import NoirProvider
-from proofs.registry import get_provider, list_providers
+from proofs.registry import list_providers
 from proofs.verify_run import verify_proof_run
 from proofs.zk_commit import MAX_INTENT_BYTES, pad_intent, verify_zk_commit, zk_commit
 
@@ -69,7 +70,6 @@ def test_construct_zk_knowledge_local_attestation(tmp_path: Path):
     else:
         # When noir skipped, manifest is noir skip — re-verify using local provider
         from proofs.local_knowledge import LocalCapsuleProvider
-        from intent_capsule import open_capsule
 
         att = run / "proofs" / "knowledge-attestation.json"
         # re-write manifest for local if noir skipped
@@ -162,3 +162,106 @@ def test_zk_forge_skips_via_risc0(tmp_path: Path):
     assert packet["proof"]["mode"] == "zk-forge"
     assert packet["proof"]["provider"] == "risc0"
     assert packet["proof"]["status"] in ("skipped", "generated", "failed")
+
+
+def _fake_nargo(bin_dir: Path, *, prove_exit: int) -> None:
+    """A stand-in nargo that records whether the witness was present."""
+    bin_dir.mkdir()
+    script = bin_dir / "nargo"
+    script.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = "prove" ]; then\n'
+        "  [ -f Prover.toml ] && stat -c %a Prover.toml > witness-mode 2>/dev/null"
+        " || stat -f %Lp Prover.toml > witness-mode\n"
+        f"  exit {prove_exit}\n"
+        "fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+
+
+@pytest.mark.parametrize("prove_exit", [0, 1])
+def test_noir_witness_is_private_and_removed(tmp_path, monkeypatch, prove_exit):
+    """Prover.toml holds plaintext intent + nonce: owner-only, gone after prove."""
+    circuit = tmp_path / "skill" / "zk" / "noir" / "intent_commitment"
+    circuit.mkdir(parents=True)
+    _fake_nargo(tmp_path / "bin", prove_exit=prove_exit)
+    monkeypatch.setenv("HERMES_SKILL_DIR", str(tmp_path / "skill"))
+    monkeypatch.setenv("PATH", f"{tmp_path / 'bin'}{os.pathsep}{os.environ['PATH']}")
+
+    res = NoirProvider().prove(
+        {"normalized_intent": "i maintain calm focus", "nonce": b"\x01" * 32},
+        {},
+        out_dir=tmp_path / "out",
+    )
+
+    assert res.status == ("generated" if prove_exit == 0 else "failed")
+    # nargo saw the witness, with no group/other access ...
+    assert (circuit / "witness-mode").read_text().strip() == "600"
+    # ... and it does not outlive the call, on success or failure.
+    assert not (circuit / "Prover.toml").exists()
+
+
+def _prove_with_fake_nargo(tmp_path, monkeypatch):
+    circuit = tmp_path / "skill" / "zk" / "noir" / "intent_commitment"
+    circuit.mkdir(parents=True)
+    _fake_nargo(tmp_path / "bin", prove_exit=0)
+    monkeypatch.setenv("HERMES_SKILL_DIR", str(tmp_path / "skill"))
+    monkeypatch.setenv("PATH", f"{tmp_path / 'bin'}{os.pathsep}{os.environ['PATH']}")
+    return circuit
+
+
+def _prove(tmp_path):
+    return NoirProvider().prove(
+        {"normalized_intent": "i maintain calm focus", "nonce": b"\x01" * 32},
+        {},
+        out_dir=tmp_path / "out",
+    )
+
+
+def test_noir_witness_replaces_a_preexisting_loose_file(tmp_path, monkeypatch):
+    circuit = _prove_with_fake_nargo(tmp_path, monkeypatch)
+    stale = circuit / "Prover.toml"
+    stale.write_text("stale")
+    stale.chmod(0o644)
+
+    res = _prove(tmp_path)
+
+    assert res.status == "generated"
+    assert (circuit / "witness-mode").read_text().strip() == "600"
+    assert not stale.exists()
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs symlinks")
+def test_noir_witness_does_not_follow_a_symlink(tmp_path, monkeypatch):
+    circuit = _prove_with_fake_nargo(tmp_path, monkeypatch)
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep me")
+    (circuit / "Prover.toml").symlink_to(victim)
+
+    res = _prove(tmp_path)
+
+    assert res.status == "generated"
+    assert victim.read_text() == "keep me"
+    assert not (circuit / "Prover.toml").exists()
+
+
+def test_noir_verify_is_bound_to_the_proof_it_is_given(tmp_path, monkeypatch):
+    """nargo verify succeeding must not vouch for a different proof file."""
+    circuit = tmp_path / "skill" / "zk" / "noir" / "intent_commitment"
+    (circuit / "proofs").mkdir(parents=True)
+    (circuit / "proofs" / "intent_commitment.proof").write_bytes(b"proof-A")
+    _fake_nargo(tmp_path / "bin", prove_exit=0)  # verify exits 0 for anything
+    monkeypatch.setenv("HERMES_SKILL_DIR", str(tmp_path / "skill"))
+    monkeypatch.setenv("PATH", f"{tmp_path / 'bin'}{os.pathsep}{os.environ['PATH']}")
+
+    same = tmp_path / "same.bin"
+    same.write_bytes(b"proof-A")
+    other = tmp_path / "other.bin"
+    other.write_bytes(b"proof-B")
+    n = NoirProvider()
+    assert n.verify(same, {}) is True
+    assert n.verify(other, {}) is False
+    assert n.verify(tmp_path / "missing.bin", {}) is False
+    assert n.verify(None, {}) is False

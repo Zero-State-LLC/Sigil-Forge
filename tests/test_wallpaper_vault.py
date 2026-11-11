@@ -163,3 +163,26 @@ def test_construct_wallpaper_product_one_shot(tmp_path: Path):
     wps = summary.get("wallpapers") or []
     assert wps, summary
     assert wps[0].get("vault_status") == "embedded"
+
+
+def test_sf12_refuses_decompression_bomb():
+    """A carrier PNG is untrusted: a tiny sealed block must not inflate unbounded."""
+    import struct
+    import zlib
+
+    import pytest
+
+    from wallpaper import vault
+
+    bomb = zlib.compress(b"\x00" * (vault.SF12_MAX_SEALED_JSON + 1), 9)
+    assert len(bomb) < 64_000  # fits well inside the 512 kB extract limit
+    body = (
+        vault.SF12_MAGIC
+        + bytes([vault.SF12_VERSION, vault.SF12_FLAG_VAULT])
+        + b"\x00" * 64
+        + struct.pack(">I", len(bomb))
+        + bomb
+    )
+    payload = body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+    with pytest.raises(ValueError, match="inflated size exceeds"):
+        unpack_sf12(payload)

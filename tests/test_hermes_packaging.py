@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"
 INSTALL = ROOT / "install.sh"
@@ -196,3 +198,120 @@ def test_help_points_to_installed_docs():
     assert "hermes-runtime-contract" in out
     assert "proof-of-intent" in out
     assert "docs/superpowers" not in out
+
+
+def _frontmatter_raw() -> str:
+    text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    return text.split("---", 2)[1]
+
+
+def test_validator_passes_without_pyyaml(monkeypatch):
+    """README promises a stdlib-only core path; install.sh runs this validator."""
+    import validate_hermes_skill as v
+
+    monkeypatch.setattr(v, "yaml", None)
+    report = v.validate()
+    assert report["ok"] is True, report["errors"]
+    fm, _ = v._parse_frontmatter((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+    assert fm["platforms"] == ["linux", "macos", "windows"]
+    assert fm["metadata"]["hermes"]["related_skills"] == []
+    assert "Sigil" in fm["metadata"]["hermes"]["tags"]
+
+
+def test_stdlib_frontmatter_parse_matches_pyyaml():
+    yaml = pytest.importorskip("yaml")
+    import validate_hermes_skill as v
+
+    assert v._parse_minimal_yaml(_frontmatter_raw()) == yaml.safe_load(
+        _frontmatter_raw()
+    )
+
+
+@pytest.mark.parametrize(
+    "frontmatter",
+    [
+        "name: x\nmetadata: {hermes: {}}\n",  # flow mapping
+        "name: x\ndescription: >\n  folded\n",  # block scalar
+        "name: x\nplatforms: [linux, macos\n",  # unbalanced inline list
+        "name: x\n\tversion: 1\n",  # tab indentation
+        "name: x\n   stray\n",  # indentation with no parent key
+        "name: x # c\n",  # plain value + comment
+        'name: "x" # c\n',  # quoted value + comment
+        'name: "x" y\n',  # text after closing quote
+        'name: "x\n',  # unterminated quote
+        "name: 'it''s'\n",  # doubled single quote
+        'name: "a\\nb"\n',  # backslash escape
+        "name: a: b\n",  # plain scalar with ': '
+        "name: a:\n",  # plain scalar ending in ':'
+        "enabled: yes\n",  # YAML 1.1 bool
+        "enabled: Null\n",
+        "version: 1\n",  # int
+        "version: 1.0\n",  # float
+        "version: -3\n",
+        "version: 1e5\n",
+        "version: 0x1F\n",
+        "tags:\n  - key: value\n",  # list item that is a mapping
+        "tags: [a, 'b']\n",  # quote in inline list
+        "tags: [a, [b]]\n",  # nested flow list
+        "tags: [a, {b}]\n",
+        "tags: [a, b # c]\n",
+        '"quoted key": x\n',  # quoted key
+        "two words: x\n",  # key with a space
+    ],
+)
+def test_stdlib_frontmatter_parse_fails_closed(frontmatter):
+    import validate_hermes_skill as v
+
+    with pytest.raises(ValueError):
+        v._parse_minimal_yaml(frontmatter)
+
+
+@pytest.mark.parametrize(
+    "frontmatter",
+    [
+        "name: sigil-forge\nversion: 0.13.1\n",
+        'name: "quoted: value"\ndescription: \'single # quoted\'\n',
+        "platforms: [linux, macos, windows]\n",
+        "platforms: []\n",
+        "tags:\n  - Creative\n  - Sigil\n",
+        "metadata:\n  hermes:\n    category: creative\n    related_skills: []\n",
+        "author: Daniel Meyer (x), Hermes Agent\nlicense: LicenseRef-Zero-1.0\n",
+        "a: 1x\nb: v1.2.3\n",
+        "empty:\nother: value\n",
+        "outer:\n  inner:\n    - one\n    - two\n  sibling: [a, b]\n",
+    ],
+)
+def test_stdlib_frontmatter_parse_accepted_snippets_match_pyyaml(frontmatter):
+    yaml = pytest.importorskip("yaml")
+    import validate_hermes_skill as v
+
+    assert v._parse_minimal_yaml(frontmatter) == yaml.safe_load(frontmatter)
+
+
+def test_install_source_path_is_not_evaluated_as_code(tmp_path: Path):
+    """A checkout path with quotes must not break out of the syntax-check snippet."""
+    import shutil
+
+    marker = tmp_path / "injected"
+    src = tmp_path / f"sf'''+open({str(marker)!r},'w').close()+r'''"
+    shutil.copytree(
+        ROOT,
+        src,
+        ignore=shutil.ignore_patterns(".git", "out", "__pycache__", ".pytest_cache"),
+    )
+    r = subprocess.run(
+        [
+            "bash",
+            str(src / "install.sh"),
+            "--dry-run",
+            "--allow-outside-home",
+            "--target",
+            str(tmp_path / "dest"),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path),
+    )
+    assert not marker.exists(), "checkout path was executed as Python"
+    assert r.returncode == 0, r.stderr + r.stdout
+    assert "Source validation OK" in r.stdout

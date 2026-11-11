@@ -85,6 +85,22 @@ def write_rgb_png(width: int, height: int, rgb: bytes) -> bytes:
     return PNG_SIG + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", compressed) + _chunk(b"IEND", b"")
 
 
+# Largest image read_rgb_png will decode: 100 megapixels, three times an 8K
+# frame. The header is untrusted and this pure-Python reader holds every pixel.
+MAX_PNG_PIXELS = 100_000_000
+
+
+def inflate_bounded(data: bytes, limit: int) -> bytes:
+    """``zlib.decompress`` that refuses to produce more than ``limit`` bytes."""
+    d = zlib.decompressobj()
+    out = d.decompress(data, limit + 1)
+    if len(out) > limit:
+        raise ValueError(f"inflated size exceeds {limit} bytes")
+    if not d.eof:
+        raise zlib.error("incomplete or truncated stream")
+    return out
+
+
 def read_rgb_png(png_bytes: bytes) -> tuple[int, int, bytes]:
     """Read 8-bit non-interlaced RGB PNG → (width, height, rgb_bytes).
 
@@ -123,6 +139,11 @@ def read_rgb_png(png_bytes: bytes) -> tuple[int, int, bytes]:
                 filt,
                 interlace,
             ) = struct.unpack(">IIBBBBB", data)
+            if width < 1 or height < 1 or width * height > MAX_PNG_PIXELS:
+                raise ValueError(
+                    f"unsupported PNG size {width}x{height} "
+                    f"(limit {MAX_PNG_PIXELS} pixels)"
+                )
             if bit_depth != 8 or color_type != 2:
                 raise ValueError(
                     f"unsupported PNG: bit_depth={bit_depth} color_type={color_type}"
@@ -139,9 +160,10 @@ def read_rgb_png(png_bytes: bytes) -> tuple[int, int, bytes]:
     if not idat:
         raise ValueError("missing IDAT")
 
-    raw = zlib.decompress(bytes(idat))
     stride = width * 3
     expected_raw = height * (1 + stride)
+    # IHDR fixes the inflated size, so never inflate past it (zlib bomb guard).
+    raw = inflate_bounded(bytes(idat), expected_raw)
     if len(raw) != expected_raw:
         raise ValueError(f"unexpected inflated size {len(raw)} != {expected_raw}")
 

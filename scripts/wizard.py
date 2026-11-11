@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import default_out_dir, skill_root
+from paths import default_out_dir, ensure_private_dir, write_private_text
 from policy_lint import detect_authority_seal_request
 from safety import check_intent
 
@@ -853,9 +853,8 @@ def load_answers_file(path: Path | str) -> dict[str, Any]:
 # --- Sessions -----------------------------------------------------------------
 
 def session_dir() -> Path:
-    d = default_out_dir().parent / "wizard-sessions"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+    # Session files hold the operator's answers, including the plaintext intent.
+    return ensure_private_dir(default_out_dir().parent / "wizard-sessions")
 
 
 def _safe_session_id(session_id: str) -> str:
@@ -880,7 +879,7 @@ def create_session(path: str = "quick") -> dict[str, Any]:
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    session_path(sid).write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    write_private_text(session_path(sid), json.dumps(doc, indent=2) + "\n")
     return doc
 
 
@@ -921,8 +920,8 @@ def save_session(
         doc["path"] = _normalize_path(path)
     doc["updated_at"] = datetime.now(timezone.utc).isoformat()
     doc["wizard_version"] = WIZARD_VERSION
-    session_path(doc["session_id"]).write_text(
-        json.dumps(doc, indent=2) + "\n", encoding="utf-8"
+    write_private_text(
+        session_path(doc["session_id"]), json.dumps(doc, indent=2) + "\n"
     )
     return doc
 

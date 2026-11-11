@@ -6,12 +6,8 @@ FORBIDDEN: topology mutation of the master glyph paths.
 
 from __future__ import annotations
 
-import math
 import re
-import struct
-import zlib
 from pathlib import Path
-from typing import Any
 
 from stego_png import write_rgb_png
 from wallpaper.seed import file_sha256

@@ -10,7 +10,7 @@ from typing import Any
 
 from artifact_root import build_sigil_root
 from commitment import commit_intent, public_commitment
-from crypto_payload import resolve_kdf, seal_intent
+from crypto_payload import seal_intent
 from forge_core import ForgeConfig, compute_forge
 from forge_manifest import build_forge_manifest, write_manifest
 from phonetic import build_phonetic_artifact
@@ -18,7 +18,13 @@ from intent_capsule import build_capsule, ciphertext_digest
 from normalize import normalize_intent
 from ontology import assert_not_entity_seal_request, default_packet_ontology
 from packet import build_packet, validate_packet, write_packet_files
-from paths import default_out_dir, make_run_id, run_dir as make_run_dir, skill_root
+from paths import (
+    default_out_dir,
+    ensure_private_dir,
+    make_run_id,
+    run_dir as make_run_dir,
+    skill_root,
+)
 from safety import check_intent
 from stego_png import embed_lsb, pack_payload
 from stego_svg import embed as stego_svg_embed
@@ -406,8 +412,11 @@ def run(
     _assert_svg_privacy(stego_svg, normalized=normalized, spare=spare)
 
     # --- atomic run dir: stage under out_root, promote only after full success ---
-    root = Path(out_root) if out_root is not None else default_out_dir()
-    root.mkdir(parents=True, exist_ok=True)
+    if out_root is not None:
+        root = Path(out_root)
+        root.mkdir(parents=True, exist_ok=True)
+    else:
+        root = ensure_private_dir(default_out_dir())
     rid = make_run_id(digest)
     final_dir = make_run_dir(root, rid)
     staging = Path(

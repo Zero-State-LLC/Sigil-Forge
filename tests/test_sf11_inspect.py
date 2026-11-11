@@ -9,8 +9,8 @@ from pathlib import Path
 
 from construct import run as construct_run
 from stego_envelope import pack_sf11, unpack_envelope
-from stego_png import embed_lsb, extract_lsb, write_rgb_png
-from stego_svg import extract as extract_svg, inject_sigil_root
+from stego_png import embed_lsb, write_rgb_png
+from stego_svg import extract as extract_svg
 from verify import run as verify_run
 from wallpaper.pipeline import build_wallpaper
 

@@ -45,10 +45,36 @@ IGNORE = shutil.ignore_patterns(
 )
 
 
+def _system_symlink(link: Path) -> bool:
+    """True for a link only root could have placed, such as macOS ``/tmp``.
+
+    The link and the directory holding it must be root-owned and that directory
+    must not be writable by anyone else. Never true when running as root or on
+    platforms without POSIX ownership, where every link stays untrusted.
+    """
+    if not hasattr(os, "geteuid") or os.geteuid() == 0:
+        return False
+    try:
+        own, parent = link.lstat(), link.parent.lstat()
+    except OSError:
+        return False
+    return own.st_uid == 0 and parent.st_uid == 0 and not parent.st_mode & 0o022
+
+
+def untrusted_symlink(target: Path) -> Path | None:
+    """First symlink on the lexical path to ``target`` a non-root user controls."""
+    lexical = Path(target).absolute()  # not abspath: that collapses ".." past a link
+    for p in (lexical, *lexical.parents):
+        if p.is_symlink() and not _system_symlink(p):
+            return p
+    return None
+
+
 def install(source: Path, target: Path, kind: str, skip_checks: bool = False) -> None:
     # Check the lexical final component before resolve follows a dangling link.
-    if any(p.is_symlink() for p in (target.absolute(), *target.absolute().parents)):
+    if untrusted_symlink(target) is not None:
         raise ValueError("refusing symlink target")
+    lexical_target = target
     source, target = source.resolve(), target.resolve()
     if source == target or source in target.parents or target in source.parents:
         raise ValueError("source and target must not overlap")
@@ -207,7 +233,7 @@ def install(source: Path, target: Path, kind: str, skip_checks: bool = False) ->
                 os.replace(pending, backup)
         displaced = workspace / "previous"
         # Detect a concurrent change of target identity since staging began.
-        if any(p.is_symlink() for p in (target.absolute(), *target.absolute().parents)):
+        if untrusted_symlink(lexical_target) is not None:
             raise ValueError("target became a symlink during staging")
         try:
             if target.exists():
@@ -241,7 +267,7 @@ def install(source: Path, target: Path, kind: str, skip_checks: bool = False) ->
 
 
 def rollback(target: Path, kind: str, skip_checks: bool = False) -> None:
-    if any(p.is_symlink() for p in (target.absolute(), *target.absolute().parents)):
+    if untrusted_symlink(target) is not None:
         raise ValueError("refusing symlink target")
     target = target.resolve()
     home = Path(os.environ.get("HERMES_HOME") or str(Path.home() / ".hermes")).resolve()

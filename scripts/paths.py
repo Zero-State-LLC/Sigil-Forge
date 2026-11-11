@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import os
+import tempfile
 
 
 def skill_root() -> Path:
@@ -28,3 +29,41 @@ def make_run_id(digest_hex: str, when: datetime | None = None) -> str:
 
 def run_dir(out_root: Path, run_id: str) -> Path:
     return Path(out_root) / run_id
+
+
+def ensure_private_dir(path: Path) -> Path:
+    """Create ``path`` for private state; directories this call creates are 0700.
+
+    Existing directories keep their mode: an operator-chosen location is theirs.
+    """
+    path = Path(path)
+    for p in reversed((path, *path.parents)):
+        if p.is_dir():
+            continue
+        try:
+            os.mkdir(p, 0o700)
+        except FileExistsError:
+            continue  # existing or concurrently created: leave its mode alone
+        try:
+            os.chmod(p, 0o700)
+        except OSError:
+            pass
+    if not path.is_dir():
+        raise NotADirectoryError(str(path))
+    return path
+
+
+def write_private_text(path: Path, text: str) -> None:
+    """Atomically write ``text`` to a file only the owner can read (0600)."""
+    path = Path(path)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix="." + path.name + ".")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise

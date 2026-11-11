@@ -9,6 +9,7 @@ Circuit lives under zk/noir/intent_commitment/.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -16,8 +17,7 @@ from typing import Any
 
 from paths import skill_root
 from proofs.base import ProofResult
-from proofs.manifest import file_digest
-from proofs.zk_commit import MAX_INTENT_BYTES, pad_intent, zk_commit
+from proofs.zk_commit import pad_intent, zk_commit
 
 
 class NoirProvider:
@@ -31,6 +31,15 @@ class NoirProvider:
 
     def _circuit_dir(self) -> Path:
         return skill_root() / "zk" / "noir" / "intent_commitment"
+
+    @staticmethod
+    def _circuit_proof(circuit: Path) -> Path | None:
+        """The proof file nargo last wrote for this circuit, if any."""
+        named = circuit / "proofs" / "intent_commitment.proof"
+        if named.is_file():
+            return named
+        candidates = sorted((circuit / "proofs").glob("*.proof"))
+        return candidates[0] if candidates else None
 
     def prove(
         self,
@@ -82,14 +91,23 @@ class NoirProvider:
         nonce_arr = ", ".join(str(b) for b in nonce)
         expected = bytes.fromhex(str(c_zk["value"]))
         expected_arr = ", ".join(str(b) for b in expected)
-        prover_toml.write_text(
-            f'intent_len = "{intent_len}"\n'
-            f"intent_bytes = [{intent_arr}]\n"
-            f"nonce = [{nonce_arr}]\n"
-            f"expected_commitment = [{expected_arr}]\n",
-            encoding="utf-8",
-        )
+        # The witness is the plaintext intent and the commitment nonce. Keep it
+        # owner-only while nargo needs it and never leave it in the skill tree.
         try:
+            # Fresh exclusive file: no inherited mode, no followed symlink.
+            prover_toml.unlink(missing_ok=True)
+            fd = os.open(
+                prover_toml,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(
+                    f'intent_len = "{intent_len}"\n'
+                    f"intent_bytes = [{intent_arr}]\n"
+                    f"nonce = [{nonce_arr}]\n"
+                    f"expected_commitment = [{expected_arr}]\n"
+                )
             # Compile + prove (nargo versions vary; try common commands)
             compile = subprocess.run(
                 ["nargo", "compile"],
@@ -134,17 +152,13 @@ class NoirProvider:
                 detail=f"nargo execution error: {exc}",
                 circuit_version=self.circuit_version,
             )
+        finally:
+            prover_toml.unlink(missing_ok=True)
 
         # Copy proof artifact if present
-        proof_src = circuit / "proofs" / "intent_commitment.proof"
-        if not proof_src.is_file():
-            # alternate locations
-            candidates = list((circuit / "proofs").glob("*.proof")) if (
-                circuit / "proofs"
-            ).is_dir() else []
-            proof_src = candidates[0] if candidates else proof_src
+        proof_src = self._circuit_proof(circuit)
         proof_dst = out / "intent-proof.bin"
-        if proof_src.is_file():
+        if proof_src is not None:
             proof_dst.write_bytes(proof_src.read_bytes())
         else:
             # Still record prover inputs for debugging when proof file missing
@@ -183,6 +197,18 @@ class NoirProvider:
         if not self.available():
             return False
         circuit = self._circuit_dir()
+        # ``nargo verify`` checks whatever proof currently sits in the circuit
+        # directory. Only trust its answer for the artifact we were handed.
+        staged = self._circuit_proof(circuit)
+        try:
+            if (
+                proof_path is None
+                or staged is None
+                or Path(proof_path).read_bytes() != staged.read_bytes()
+            ):
+                return False
+        except OSError:
+            return False
         try:
             proc = subprocess.run(
                 ["nargo", "verify"],

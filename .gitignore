@@ -6,3 +6,22 @@ __pycache__/
 .venv/
 *.egg-info/
 .superpowers/
+
+# Local secrets and key material: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Noir prover witness (plaintext intent bytes + commitment nonce) and build output
+Prover.toml
+zk/**/target/
+zk/**/proofs/
+
+# Local tool state
+.DS_Store
+.mypy_cache/
+.ruff_cache/
+graft/
+.trail/

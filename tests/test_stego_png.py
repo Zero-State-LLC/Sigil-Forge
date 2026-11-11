@@ -68,3 +68,63 @@ def test_raster_svg_returns_none_without_backend():
     result = svg_to_png_bytes("<svg xmlns='http://www.w3.org/2000/svg'></svg>")
     # Either a real PNG or None; never raise. Synthetic path does not require raster.
     assert result is None or (isinstance(result, bytes) and result[:8] == b"\x89PNG\r\n\x1a\n")
+
+
+def test_read_rgb_png_refuses_idat_larger_than_ihdr():
+    """IDAT that inflates past what IHDR declares is rejected without inflating it all."""
+    import struct
+    import zlib
+
+    import pytest
+
+    from stego_png import _chunk
+
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+        + _chunk(b"IDAT", zlib.compress(b"\x00" * 50_000_000, 9))
+        + _chunk(b"IEND", b"")
+    )
+    assert len(png) < 100_000
+    with pytest.raises(ValueError, match="inflated size exceeds 4 bytes"):
+        read_rgb_png(png)
+
+
+def test_read_rgb_png_truncated_idat_still_raises_zlib_error():
+    import struct
+    import zlib
+
+    import pytest
+
+    from stego_png import _chunk
+
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+        + _chunk(b"IDAT", zlib.compress(b"\x00\x01\x02\x03")[:-3])
+        + _chunk(b"IEND", b"")
+    )
+    with pytest.raises(zlib.error):
+        read_rgb_png(png)
+
+
+def test_read_rgb_png_refuses_oversized_or_empty_header():
+    import struct
+    import zlib
+
+    import pytest
+
+    from stego_png import MAX_PNG_PIXELS, _chunk
+
+    def png(width, height):
+        return (
+            b"\x89PNG\r\n\x1a\n"
+            + _chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + _chunk(b"IDAT", zlib.compress(b"\x00"))
+            + _chunk(b"IEND", b"")
+        )
+
+    assert 7680 * 4320 < MAX_PNG_PIXELS  # an 8K wallpaper is still accepted
+    for width, height in [(100_000, 100_000), (0, 10), (10, 0)]:
+        with pytest.raises(ValueError, match="unsupported PNG size"):
+            read_rgb_png(png(width, height))

@@ -17,12 +17,11 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from pathlib import Path
 
 try:
     import yaml
-except ImportError:  # stdlib-only fallback: minimal key parse
+except ImportError:  # stdlib-only fallback: _parse_minimal_yaml
     yaml = None  # type: ignore
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -54,6 +53,101 @@ REQUIRED_SECTIONS = (
 )
 
 
+_NON_STRING_PLAIN = re.compile(
+    r"(?i)(?:true|false|yes|no|on|off|null|~)"
+    r"|[-+]?(?:0x[0-9a-f_]+|0b[01_]+"
+    r"|\d[\d_]*(?::[0-5]?\d)*(?:\.[\d_]*)?(?:e[-+]?\d+)?"
+    r"|\.[\d_]+(?:e[-+]?\d+)?|\.(?:inf|nan))"
+    r"|\d{4}-\d{1,2}-\d{1,2}.*"
+)
+
+
+def _needs_yaml(v: str):
+    raise ValueError(f"frontmatter value {v!r} needs a full YAML parser; install PyYAML")
+
+
+def _scalar(raw: str):
+    """Fallback scalar: simple quoted string, inline list of plain words, or plain text.
+
+    Anything PyYAML might read differently raises instead of being guessed at.
+    """
+    v = raw.strip()
+    if v[:1] in ("\"", "'"):
+        q = v[0]
+        if len(v) < 2 or v[-1] != q:
+            _needs_yaml(v)  # unterminated, trailing text or comment
+        inner = v[1:-1]
+        if q in inner or (q == '"' and "\\" in inner):
+            _needs_yaml(v)  # escapes, doubled quotes, text after a closing quote
+        return inner
+    if v.startswith("[") and v.endswith("]"):
+        inner = v[1:-1].strip()
+        if any(c in inner for c in "\"'[]{}#"):
+            _needs_yaml(v)
+        if not inner:
+            return []
+        items = [item.strip() for item in inner.split(",")]
+        if not all(items):
+            _needs_yaml(v)
+        return [_scalar(item) for item in items]
+    if v[:1] in ("{", "&", "*", "!", "|", ">", "[", "#", "%", "@", "`") or v.startswith("- "):
+        _needs_yaml(v)
+    if re.search(r"\s#", v) or ": " in v or v.endswith(":"):
+        _needs_yaml(v)
+    if _NON_STRING_PLAIN.fullmatch(v):
+        _needs_yaml(v)
+    return v
+
+
+def _parse_minimal_yaml(fm_raw: str) -> dict:
+    """Stdlib-only parse of the YAML subset SKILL.md frontmatter uses.
+
+    Nested block mappings, block lists of scalars, inline lists and plain or
+    quoted scalars. Anything else fails closed rather than being misread.
+    """
+    lines = []
+    for raw in fm_raw.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if "\t" in raw[: len(raw) - len(raw.lstrip())]:
+            raise ValueError("frontmatter must be indented with spaces")
+        lines.append((len(raw) - len(raw.lstrip(" ")), raw.strip()))
+
+    def block(i: int, indent: int):
+        if lines[i][1].startswith("- "):
+            items = []
+            while i < len(lines) and lines[i][0] == indent and lines[i][1].startswith("- "):
+                items.append(_scalar(lines[i][1][2:]))
+                i += 1
+            return items, i
+        out: dict = {}
+        while i < len(lines) and lines[i][0] == indent:
+            key, sep, rest = lines[i][1].partition(":")
+            if not sep or not key.strip() or (rest and not rest.startswith(" ")):
+                raise ValueError(f"unsupported frontmatter line: {lines[i][1]!r}")
+            if key[:1] in "\"'" or re.search(r"\s", key.strip()) or (
+                _NON_STRING_PLAIN.fullmatch(key.strip())
+            ):
+                raise ValueError(
+                    f"frontmatter key {key!r} needs a full YAML parser; install PyYAML"
+                )
+            i += 1
+            if rest.strip():
+                out[key.strip()] = _scalar(rest)
+            elif i < len(lines) and lines[i][0] > indent:
+                out[key.strip()], i = block(i, lines[i][0])
+            else:
+                out[key.strip()] = None
+        return out, i
+
+    if not lines:
+        return {}
+    fm, end = block(0, lines[0][0])
+    if end != len(lines) or not isinstance(fm, dict):
+        raise ValueError("unsupported frontmatter indentation")
+    return fm
+
+
 def _parse_frontmatter(text: str) -> tuple[dict, str]:
     if not text.startswith("---"):
         raise ValueError("SKILL.md must start with --- (no leading whitespace/BOM)")
@@ -65,14 +159,7 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
     if yaml is not None:
         fm = yaml.safe_load(fm_raw)
     else:
-        # Minimal fallback: only top-level scalars
-        fm = {}
-        for line in fm_raw.splitlines():
-            if ":" in line and not line.strip().startswith("#"):
-                k, _, v = line.partition(":")
-                k, v = k.strip(), v.strip().strip("\"'")
-                if k and not k.startswith(" "):
-                    fm[k] = v
+        fm = _parse_minimal_yaml(fm_raw)
     if not isinstance(fm, dict):
         raise ValueError("frontmatter is not a YAML mapping")
     return fm, body

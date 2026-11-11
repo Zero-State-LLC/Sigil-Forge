@@ -15,7 +15,6 @@ from crypto_payload import intent_digest
 from receipt import (
     append_ledger,
     build_ledger_entry,
-    build_run_receipt,
     read_ledger,
 )
 from rose_cross import build_rose_path, letter_to_slot
