@@ -22,7 +22,24 @@ ROOT="$(git rev-parse --show-toplevel)"
 TOOLDIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/zsl-security-tools"
 BIN="$TOOLDIR/bin"
 VENV="$TOOLDIR/venv"
+
+# The cache holds binaries this script executes: it must be ours and private.
+file_uid() { stat -c %u "$1" 2>/dev/null || stat -f %u "$1"; }
+mkdir -m 700 "$TOOLDIR" 2>/dev/null || true
+if [ -L "$TOOLDIR" ] || [ ! -d "$TOOLDIR" ]; then
+  echo "refusing tool cache $TOOLDIR: not a plain directory" >&2
+  exit 2
+fi
+if [ "$(file_uid "$TOOLDIR")" != "$(id -u)" ]; then
+  echo "refusing tool cache $TOOLDIR: not owned by the current user" >&2
+  exit 2
+fi
+chmod 700 "$TOOLDIR"
 mkdir -p "$BIN"
+if [ -L "$BIN" ]; then
+  echo "refusing tool cache $BIN: is a symlink" >&2
+  exit 2
+fi
 
 failed=()
 note() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
@@ -70,22 +87,40 @@ verify_download() {
 }
 
 # ---------------------------------------------------------------- install ---
-if [ ! -x "$BIN/gitleaks" ]; then
+# The pinned hashes are re-checked on every run, not only at download time.
+GL_ARCH="$ARCH"; [ "$ARCH" = amd64 ] && GL_ARCH=x64
+GL_ASSET="gitleaks_${GITLEAKS_VERSION}_${OS}_${GL_ARCH}.tar.gz"
+GL_TARBALL="$TOOLDIR/$GL_ASSET"
+if [ ! -f "$GL_TARBALL" ]; then
   note "installing gitleaks $GITLEAKS_VERSION"
-  GL_ARCH="$ARCH"; [ "$ARCH" = amd64 ] && GL_ARCH=x64
-  curl -fsSL -o "$TOOLDIR/gl.tar.gz" \
-    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${OS}_${GL_ARCH}.tar.gz"
-  verify_download "$TOOLDIR/gl.tar.gz" "gitleaks_${GITLEAKS_VERSION}_${OS}_${GL_ARCH}.tar.gz"
-  tar xzf "$TOOLDIR/gl.tar.gz" -C "$BIN" gitleaks
+  curl -fsSL -o "$GL_TARBALL.part" \
+    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$GL_ASSET"
+  verify_download "$GL_TARBALL.part" "$GL_ASSET"
+  mv "$GL_TARBALL.part" "$GL_TARBALL"
 fi
+verify_download "$GL_TARBALL" "$GL_ASSET"
+tar xzf "$GL_TARBALL" -C "$BIN" gitleaks
 
-if [ ! -x "$BIN/osv-scanner" ]; then
+OSV_KEY="osv-scanner_${OSV_VERSION}_${OS}_${ARCH}"
+osv_ok() {
+  [ -x "$BIN/osv-scanner" ] && [ ! -L "$BIN/osv-scanner" ] || return 1
+  local want got
+  want="$(expected_sha256 "$OSV_KEY")"
+  if command -v sha256sum >/dev/null 2>&1; then
+    got="$(sha256sum "$BIN/osv-scanner" | cut -d' ' -f1)"
+  else
+    got="$(shasum -a 256 "$BIN/osv-scanner" | cut -d' ' -f1)"
+  fi
+  [ -n "$want" ] && [ "$got" = "$want" ]
+}
+if ! osv_ok; then
   note "installing osv-scanner $OSV_VERSION"
+  rm -f "$BIN/osv-scanner"
   curl -fsSL -o "$TOOLDIR/osv-scanner.download" \
     "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_${OS}_${ARCH}"
-  verify_download "$TOOLDIR/osv-scanner.download" "osv-scanner_${OSV_VERSION}_${OS}_${ARCH}"
+  verify_download "$TOOLDIR/osv-scanner.download" "$OSV_KEY"
+  chmod +x "$TOOLDIR/osv-scanner.download"
   mv "$TOOLDIR/osv-scanner.download" "$BIN/osv-scanner"
-  chmod +x "$BIN/osv-scanner"
 fi
 
 has_python=0
