@@ -235,6 +235,28 @@ def test_stdlib_frontmatter_parse_matches_pyyaml():
         "name: x\nplatforms: [linux, macos\n",  # unbalanced inline list
         "name: x\n\tversion: 1\n",  # tab indentation
         "name: x\n   stray\n",  # indentation with no parent key
+        "name: x # c\n",  # plain value + comment
+        'name: "x" # c\n',  # quoted value + comment
+        'name: "x" y\n',  # text after closing quote
+        'name: "x\n',  # unterminated quote
+        "name: 'it''s'\n",  # doubled single quote
+        'name: "a\\nb"\n',  # backslash escape
+        "name: a: b\n",  # plain scalar with ': '
+        "name: a:\n",  # plain scalar ending in ':'
+        "enabled: yes\n",  # YAML 1.1 bool
+        "enabled: Null\n",
+        "version: 1\n",  # int
+        "version: 1.0\n",  # float
+        "version: -3\n",
+        "version: 1e5\n",
+        "version: 0x1F\n",
+        "tags:\n  - key: value\n",  # list item that is a mapping
+        "tags: [a, 'b']\n",  # quote in inline list
+        "tags: [a, [b]]\n",  # nested flow list
+        "tags: [a, {b}]\n",
+        "tags: [a, b # c]\n",
+        '"quoted key": x\n',  # quoted key
+        "two words: x\n",  # key with a space
     ],
 )
 def test_stdlib_frontmatter_parse_fails_closed(frontmatter):
@@ -242,6 +264,28 @@ def test_stdlib_frontmatter_parse_fails_closed(frontmatter):
 
     with pytest.raises(ValueError):
         v._parse_minimal_yaml(frontmatter)
+
+
+@pytest.mark.parametrize(
+    "frontmatter",
+    [
+        "name: sigil-forge\nversion: 0.13.1\n",
+        'name: "quoted: value"\ndescription: \'single # quoted\'\n',
+        "platforms: [linux, macos, windows]\n",
+        "platforms: []\n",
+        "tags:\n  - Creative\n  - Sigil\n",
+        "metadata:\n  hermes:\n    category: creative\n    related_skills: []\n",
+        "author: Daniel Meyer (x), Hermes Agent\nlicense: LicenseRef-Zero-1.0\n",
+        "a: 1x\nb: v1.2.3\n",
+        "empty:\nother: value\n",
+        "outer:\n  inner:\n    - one\n    - two\n  sibling: [a, b]\n",
+    ],
+)
+def test_stdlib_frontmatter_parse_accepted_snippets_match_pyyaml(frontmatter):
+    yaml = pytest.importorskip("yaml")
+    import validate_hermes_skill as v
+
+    assert v._parse_minimal_yaml(frontmatter) == yaml.safe_load(frontmatter)
 
 
 def test_install_source_path_is_not_evaluated_as_code(tmp_path: Path):
