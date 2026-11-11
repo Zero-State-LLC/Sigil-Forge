@@ -65,19 +65,29 @@ Out of scope:
 
 ## Open questions
 
-Owner decides. The drafter's recommendation is in brackets.
+Owner decides. Each was researched on 2026-11-11; the evidence is in
+`docs/PACKAGING-RESEARCH-2026-11.md` and the recommendation is in brackets.
 
-1. Layout. Move the files into `src/sigil_forge/`, which is a larger diff, or
-   keep them in `scripts/` and add a `sigil_forge` package that re-exports
-   them. [Re-export first. It keeps the install tree and paths the same, and
-   the move can follow in a later change.]
-2. Distribution. Install from git only, or publish to a package index.
-   [Git only for now. No index is needed for Hermes or Abraxas.]
-3. Licence first? `pyproject.toml` needs a licence value. `LICENSE` is
-   ZSPL-1.0 and draft PR #5 proposes MIT. [Decide the licence first. Until
-   then the licence field can be left out.]
-4. How long bare-name imports keep working, such as `import paths`.
-   [Keep them for one release with a deprecation note, then remove them.]
+1. Layout. Move the files into `src/sigil_forge/`, or keep them in `scripts/`
+   and map a `sigil_forge` package onto that directory. [Move them. The
+   mapping was tried and fails on the first sibling import
+   (`ModuleNotFoundError: No module named 'artifact_root'`), and it loads
+   modules twice. The move is 294 import statements in 76 files and is
+   mechanical. This reverses the first draft's recommendation.]
+2. Data files. How an installed package finds `references/`, `schemas/`,
+   `zk/`, `SKILL.md` and `VERSION`. [`skill_root()` keeps `HERMES_SKILL_DIR`
+   first, then walks up to a `SKILL.md` plus `VERSION` marker. No package
+   data yet. The Hermes install tree stays as it is.]
+3. Distribution. Install from git only, or publish to a package index.
+   [Git tag only, setuptools backend. No index is needed for Hermes or
+   Abraxas.]
+4. Licence first? `pyproject.toml` needs a licence value. `LICENSE` is
+   ZSPL-1.0 and draft PR #5 proposes MIT. [Decide the licence first; see
+   `docs/LICENSE-OPTIONS-2026-11.md`. Until then leave the field out.]
+5. How long bare-name imports keep working, such as `import paths`.
+   [Remove them in the move. Keep `scripts/sigil_forge.py` as a shim
+   indefinitely: the repo references that path about 180 times and Hermes
+   operators call it.]
 
 ## Verified / assumed claims
 
