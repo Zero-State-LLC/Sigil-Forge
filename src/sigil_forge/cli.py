@@ -4,13 +4,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import zlib
 from pathlib import Path
 
 
 def cmd_help(_: argparse.Namespace) -> int:
     print(
         "sigil-forge — multi-channel intent sigils (Hermes skill)\n"
-        "commands: construct | verify | verify-proof | inspect | wallpaper | wizard | open | learn | ledger | "
+        "commands: construct | verify | verify-proof | inspect | png-stats | wallpaper | wizard | open | learn | ledger | "
         "policy | doctor | eval | check | help\n"
         "Product: wallpaper PNG with SF12 sealed vault (intent + methods in-image).\n"
         "See SKILL.md, QUICKSTART.md, references/hermes-runtime-contract.md\n"
@@ -391,6 +392,28 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     result = inspect_path(args.artifact)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("ok") else 1
+
+
+def cmd_png_stats(args: argparse.Namespace) -> int:
+    """LSB-plane statistics for a PNG (descriptive only, not a detector)."""
+    from sigil_forge.png_stats import analyze_png
+
+    try:
+        result = analyze_png(args.path)
+    except (ValueError, OSError, zlib.error) as exc:
+        print(f"png-stats: {exc}", file=sys.stderr)
+        return 1
+    text = json.dumps(result, indent=2, sort_keys=True)
+    if args.out:
+        out = Path(args.out)
+        try:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(text + "\n", encoding="utf-8")
+        except OSError as exc:
+            print(f"png-stats: cannot write {out}: {exc}", file=sys.stderr)
+            return 1
+    print(text)
+    return 0
 
 
 def cmd_verify_proof(args: argparse.Namespace) -> int:
@@ -1448,6 +1471,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     pi.add_argument("artifact", help="Path to glyph.svg, glyph.png, wallpaper, or run dir")
 
+    pps = sub.add_parser(
+        "png-stats",
+        help="LSB-plane statistics of an 8-bit RGB PNG (descriptive; not a detector)",
+        description=(
+            "Print counts and a chi-square figure for the least-significant-bit "
+            "plane of a PNG. These are descriptive statistics, not a detector "
+            "verdict: the output does not show that data is hidden or absent."
+        ),
+    )
+    pps.add_argument("path", help="Path to an 8-bit RGB PNG")
+    pps.add_argument("--out", default=None, help="Also write the JSON to this file")
+
     pvp = sub.add_parser(
         "verify-proof",
         help="Verify proof-of-intent for a forge run directory",
@@ -1674,6 +1709,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_verify(args)
     if args.cmd == "inspect":
         return cmd_inspect(args)
+    if args.cmd == "png-stats":
+        return cmd_png_stats(args)
     if args.cmd == "verify-proof":
         return cmd_verify_proof(args)
     if args.cmd == "open":
