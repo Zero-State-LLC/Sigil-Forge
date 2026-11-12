@@ -1,8 +1,8 @@
 """Authority-seal exclusion gates: construct and wizard refuse Goetic/Enochian."""
 
 import pytest
-from construct import run as construct_run
-from wizard import next_step
+from sigil_forge.construct import run as construct_run
+from sigil_forge.wizard import next_step
 
 
 def test_construct_refuses_enochian_request(tmp_path):

@@ -18,7 +18,7 @@ import struct
 import zlib
 from typing import Any, Optional
 
-from stego_png import DIGEST_LEN, MAGIC as SF1_MAGIC
+from sigil_forge.stego_png import DIGEST_LEN, MAGIC as SF1_MAGIC
 
 SF11_MAGIC = b"SF11"
 SF11_VERSION = 1
@@ -38,7 +38,7 @@ def _hex_to_32(h: str) -> bytes:
 
 
 def pack_sf1(digest: bytes, sealed: Optional[bytes] = None) -> bytes:
-    from stego_png import pack_payload
+    from sigil_forge.stego_png import pack_payload
 
     return pack_payload(digest, sealed)
 
@@ -59,7 +59,7 @@ def unpack_envelope(payload: bytes) -> dict[str, Any]:
         raise ValueError("payload too short")
     magic = payload[:4]
     if magic == SF1_MAGIC:
-        from stego_png import unpack_payload
+        from sigil_forge.stego_png import unpack_payload
 
         digest, sealed = unpack_payload(payload)
         return {
@@ -94,7 +94,7 @@ def unpack_envelope(payload: bytes) -> dict[str, Any]:
             "sealed": None,
         }
     if magic == b"SF12":
-        from wallpaper.vault import unpack_sf12
+        from sigil_forge.wallpaper.vault import unpack_sf12
 
         return unpack_sf12(payload)
     raise ValueError(f"unknown stego magic {magic!r}")

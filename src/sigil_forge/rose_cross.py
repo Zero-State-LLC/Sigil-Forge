@@ -13,7 +13,7 @@ import math
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from kamea import HEBREW_VALUES, transliterate_latin_to_hebrew
+from sigil_forge.kamea import HEBREW_VALUES, transliterate_latin_to_hebrew
 
 # Traditional GD-style order of Hebrew letters on the rose petals (Aleph→Tav).
 # 22 letters, one per petal.

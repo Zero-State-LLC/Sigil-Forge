@@ -7,12 +7,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from construct import run as construct_run
-from stego_envelope import pack_sf11, unpack_envelope
-from stego_png import embed_lsb, write_rgb_png
-from stego_svg import extract as extract_svg
-from verify import run as verify_run
-from wallpaper.pipeline import build_wallpaper
+from sigil_forge.construct import run as construct_run
+from sigil_forge.stego_envelope import pack_sf11, unpack_envelope
+from sigil_forge.stego_png import embed_lsb, write_rgb_png
+from sigil_forge.stego_svg import extract as extract_svg
+from sigil_forge.verify import run as verify_run
+from sigil_forge.wallpaper.pipeline import build_wallpaper
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"
@@ -72,7 +72,7 @@ def test_construct_sf11_on_png_and_svg(tmp_path: Path):
 
 def test_legacy_sf1_still_verifies(tmp_path: Path):
     # construct always SF11 now when root present — build raw SF1 manually
-    from stego_png import pack_payload
+    from sigil_forge.stego_png import pack_payload
 
     rgb = bytes([20, 20, 20]) * (64 * 64)
     png = write_rgb_png(64, 64, rgb)

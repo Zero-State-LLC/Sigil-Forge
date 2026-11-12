@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from packet import build_packet, framing_notes
-from policy_lint import assert_no_efficacy, lint_efficacy_text
-from prompt_polish import build_prompt
+from sigil_forge.packet import build_packet, framing_notes
+from sigil_forge.policy_lint import assert_no_efficacy, lint_efficacy_text
+from sigil_forge.prompt_polish import build_prompt
 
 
 def test_builtin_framing_notes_clean():

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Iterable, Sequence
 
-from stego_png import write_rgb_png
+from sigil_forge.stego_png import write_rgb_png
 
 # Default export size — enough LSB capacity for SF1 digest payload (36 bytes).
 DEFAULT_SIZE = 256

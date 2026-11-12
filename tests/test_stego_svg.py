@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import re
 
-from crypto_payload import intent_digest
-from fuse import build_layout
-from normalize import normalize_intent
-from stego_svg import embed, extract
-from svg_export import layout_to_svg
+from sigil_forge.crypto_payload import intent_digest
+from sigil_forge.fuse import build_layout
+from sigil_forge.normalize import normalize_intent
+from sigil_forge.stego_svg import embed, extract
+from sigil_forge.svg_export import layout_to_svg
 
 
 def _sample_svg():

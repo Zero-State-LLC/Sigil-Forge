@@ -16,8 +16,8 @@ import zlib
 from pathlib import Path
 from typing import Any
 
-from crypto_payload import open_intent, seal_intent
-from stego_png import (
+from sigil_forge.crypto_payload import open_intent, seal_intent
+from sigil_forge.stego_png import (
     DIGEST_LEN,
     embed_lsb,
     extract_lsb,
@@ -63,7 +63,7 @@ def build_vault_document(
         raw_intent = packet.get("normalized_intent") or packet.get("intent")
     normalized = packet.get("normalized_intent")
     if not normalized and raw_intent:
-        from normalize import normalize_intent
+        from sigil_forge.normalize import normalize_intent
 
         normalized = normalize_intent(str(raw_intent))
 
@@ -259,7 +259,7 @@ def embed_vault_png(
     clean = write_rgb_png(w, h, rgb)
     out = embed_lsb(clean, payload)
     path.write_bytes(out)
-    from wallpaper.seed import file_sha256
+    from sigil_forge.wallpaper.seed import file_sha256
 
     return file_sha256(str(path))
 

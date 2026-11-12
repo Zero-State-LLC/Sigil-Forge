@@ -16,8 +16,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from kamea import KAMEA_SQUARES
-from paths import skill_root
+from sigil_forge.kamea import KAMEA_SQUARES
+from sigil_forge.paths import skill_root
 
 PLATE_REL = Path("references") / "planetary-plate-strokes.json"
 PLATE_CORPUS_ID = "planetary_plate_strokes_v1"

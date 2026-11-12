@@ -15,9 +15,9 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from paths import skill_root
-from proofs.base import ProofResult
-from proofs.zk_commit import pad_intent, zk_commit
+from sigil_forge.paths import skill_root
+from sigil_forge.proofs.base import ProofResult
+from sigil_forge.proofs.zk_commit import pad_intent, zk_commit
 
 
 class NoirProvider:

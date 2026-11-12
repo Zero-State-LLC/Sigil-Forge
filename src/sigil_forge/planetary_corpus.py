@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from paths import skill_root
+from sigil_forge.paths import skill_root
 
 CORPUS_REL = Path("references") / "planetary-character-corpus.json"
 KIND_TO_ROLE = {

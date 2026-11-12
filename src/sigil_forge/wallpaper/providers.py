@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from wallpaper.composite import (
+from sigil_forge.wallpaper.composite import (
     load_operator_background,
     procedural_background,
     resize_rgb_nearest,
@@ -162,7 +162,7 @@ def load_background_image(
     if not allow_resize:
         return None
     try:
-        from stego_png import read_rgb_png
+        from sigil_forge.stego_png import read_rgb_png
 
         w, h, rgb = read_rgb_png(path.read_bytes())
         if w == width and h == height:

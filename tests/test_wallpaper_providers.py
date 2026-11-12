@@ -7,11 +7,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from construct import run as construct_run
-from stego_png import write_rgb_png
-from wallpaper.composite import procedural_background, resize_rgb_nearest
-from wallpaper.pipeline import build_wallpaper
-from wallpaper.providers import (
+from sigil_forge.construct import run as construct_run
+from sigil_forge.stego_png import write_rgb_png
+from sigil_forge.wallpaper.composite import procedural_background, resize_rgb_nearest
+from sigil_forge.wallpaper.pipeline import build_wallpaper
+from sigil_forge.wallpaper.providers import (
     enrich_prompt_package,
     expand_provider_command,
     load_background_image,
@@ -238,7 +238,7 @@ def test_host_command_path_with_spaces_and_quotes_stays_one_argument(tmp_path: P
     import json
     import sys
 
-    from wallpaper.providers import run_host_command
+    from sigil_forge.wallpaper.providers import run_host_command
 
     odd = tmp_path / "my runs; --extra 'x'"
     odd.mkdir()

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from receipt import (
+from sigil_forge.receipt import (
     append_ledger,
     append_learning_entry,
     build_ledger_entry,

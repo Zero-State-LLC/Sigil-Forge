@@ -223,7 +223,7 @@ def _build_payload(
     *,
     sigil_root: str | None = None,
 ) -> str:
-    from stego_envelope import svg_metadata_payload
+    from sigil_forge.stego_envelope import svg_metadata_payload
 
     obj = svg_metadata_payload(
         intent_digest=digest_hex,

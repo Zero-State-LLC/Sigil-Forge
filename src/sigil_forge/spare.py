@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from ontology import SPARE_MODES
+from sigil_forge.ontology import SPARE_MODES
 
 _VOWELS = set("aeiouy")
 

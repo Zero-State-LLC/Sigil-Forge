@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from construct import run as construct_run
-from planetary_seals import intelligence_character, seal_for, spirit_character, traditional_seal_path
-from plate_strokes import load_plate_corpus, resolve_plate_entry, traditional_plate_strokes
+from sigil_forge.construct import run as construct_run
+from sigil_forge.planetary_seals import intelligence_character, seal_for, spirit_character, traditional_seal_path
+from sigil_forge.plate_strokes import load_plate_corpus, resolve_plate_entry, traditional_plate_strokes
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -6,17 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from construct import run as construct_run
-from kamea import (
+from sigil_forge.construct import run as construct_run
+from sigil_forge.kamea import (
     DEFAULT_KAMEA_ENCODING,
     build_kamea_path,
     encode_hebrew_gematria,
     square_max,
 )
-from ontology import SPARE_MODES, assert_not_entity_seal_request, default_packet_ontology
-from planetary_seals import traditional_seal_path
-from rose_cross import ROSE_PETALS, build_rose_cross_path
-from spare import run_spare
+from sigil_forge.ontology import SPARE_MODES, assert_not_entity_seal_request, default_packet_ontology
+from sigil_forge.planetary_seals import traditional_seal_path
+from sigil_forge.rose_cross import ROSE_PETALS, build_rose_cross_path
+from sigil_forge.spare import run_spare
 
 
 def test_default_kamea_encoding_is_hebrew_gematria():
@@ -41,7 +41,7 @@ def test_hebrew_gematria_visits_cells_beyond_mod9_on_jupiter():
     assert prov.reduced_numeric_sequence == reduced
     assert len(prov.path) == len(reduced) or len(prov.path) > 0
     # Path points correspond to cells holding reduced values
-    from kamea import KAMEA_SQUARES
+    from sigil_forge.kamea import KAMEA_SQUARES
 
     square = KAMEA_SQUARES["jupiter"]
     for (x, y), val in zip(prov.path, prov.reduced_numeric_sequence):

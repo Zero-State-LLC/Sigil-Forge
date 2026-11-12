@@ -4,9 +4,9 @@ from __future__ import annotations
 import binascii
 
 import pytest
-from crypto_payload import open_intent, seal_intent
+from sigil_forge.crypto_payload import open_intent, seal_intent
 
-from aes_gcm_pure import aes_gcm_decrypt, aes_gcm_encrypt
+from sigil_forge.aes_gcm_pure import aes_gcm_decrypt, aes_gcm_encrypt
 
 
 def test_seal_roundtrip():
@@ -88,7 +88,7 @@ def test_aes_gcm_tampered_tag_fails():
 
 
 def test_pbkdf2_default_meets_owasp_floor():
-    import crypto_payload
+    from sigil_forge import crypto_payload
 
     assert crypto_payload.DEFAULT_PBKDF2_ITERATIONS >= 600_000
     assert seal_intent("x", "pw")["iterations"] == crypto_payload.DEFAULT_PBKDF2_ITERATIONS
@@ -156,7 +156,7 @@ def test_argon2_blob_opens_with_its_recorded_parameters():
     ],
 )
 def test_argon2_parameters_from_blob_are_bounded(params):
-    import crypto_payload
+    from sigil_forge import crypto_payload
 
     with pytest.raises(ValueError):
         crypto_payload._argon2_params(params)

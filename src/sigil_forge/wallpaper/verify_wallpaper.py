@@ -7,8 +7,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from wallpaper.safe_zones import check_safe_zones
-from wallpaper.seed import file_sha256
+from sigil_forge.wallpaper.safe_zones import check_safe_zones
+from sigil_forge.wallpaper.seed import file_sha256
 
 
 def plaintext_scan(path: Path, forbidden_phrases: list[str] | None = None) -> str:
@@ -46,7 +46,7 @@ def verify_wallpaper(
     # Dimensions
     dim = "fail"
     try:
-        from stego_png import read_rgb_png
+        from sigil_forge.stego_png import read_rgb_png
 
         ow, oh, _ = read_rgb_png(output_path.read_bytes())
         if ow == w and oh == h:

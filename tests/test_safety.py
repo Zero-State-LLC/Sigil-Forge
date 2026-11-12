@@ -1,4 +1,4 @@
-from safety import check_intent
+from sigil_forge.safety import check_intent
 
 
 def test_allows_calm_focus():

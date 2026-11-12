@@ -8,28 +8,28 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from artifact_root import build_sigil_root
-from commitment import commit_intent, public_commitment
-from crypto_payload import seal_intent
-from forge_core import ForgeConfig, compute_forge
-from forge_manifest import build_forge_manifest, write_manifest
-from phonetic import build_phonetic_artifact
-from intent_capsule import build_capsule, ciphertext_digest
-from normalize import normalize_intent
-from ontology import assert_not_entity_seal_request, default_packet_ontology
-from packet import build_packet, validate_packet, write_packet_files
-from paths import (
+from sigil_forge.artifact_root import build_sigil_root
+from sigil_forge.commitment import commit_intent, public_commitment
+from sigil_forge.crypto_payload import seal_intent
+from sigil_forge.forge_core import ForgeConfig, compute_forge
+from sigil_forge.forge_manifest import build_forge_manifest, write_manifest
+from sigil_forge.phonetic import build_phonetic_artifact
+from sigil_forge.intent_capsule import build_capsule, ciphertext_digest
+from sigil_forge.normalize import normalize_intent
+from sigil_forge.ontology import assert_not_entity_seal_request, default_packet_ontology
+from sigil_forge.packet import build_packet, validate_packet, write_packet_files
+from sigil_forge.paths import (
     default_out_dir,
     ensure_private_dir,
     make_run_id,
     run_dir as make_run_dir,
     skill_root,
 )
-from safety import check_intent
-from stego_png import embed_lsb, pack_payload
-from stego_svg import embed as stego_svg_embed
-from svg_export import layout_to_svg
-from wallpaper.seed import file_sha256
+from sigil_forge.safety import check_intent
+from sigil_forge.stego_png import embed_lsb, pack_payload
+from sigil_forge.stego_svg import embed as stego_svg_embed
+from sigil_forge.svg_export import layout_to_svg
+from sigil_forge.wallpaper.seed import file_sha256
 
 # Env passphrase avoids argv exposure (process list / shell history).
 PASSPHRASE_ENV = "SIGIL_FORGE_PASSPHRASE"
@@ -128,7 +128,7 @@ def _try_png_lsb(
     # 1. Stdlib layout geometry → filter-0 RGB PNG (Hermes offline default)
     if monogram_points is not None or kamea_points is not None:
         try:
-            from layout_raster import layout_to_png_bytes
+            from sigil_forge.layout_raster import layout_to_png_bytes
 
             png_bytes = layout_to_png_bytes(
                 monogram_points or [],
@@ -141,7 +141,7 @@ def _try_png_lsb(
     # 2. Optional SVG raster backends
     if not png_bytes:
         try:
-            from raster_svg import svg_to_png_bytes
+            from sigil_forge.raster_svg import svg_to_png_bytes
 
             png_bytes = svg_to_png_bytes(svg)
             source = "svg_backend" if png_bytes else "none"
@@ -162,7 +162,7 @@ def _try_png_lsb(
             monogram_points is not None or kamea_points is not None
         ):
             try:
-                from layout_raster import layout_to_png_bytes
+                from sigil_forge.layout_raster import layout_to_png_bytes
 
                 png_bytes = layout_to_png_bytes(
                     monogram_points or [],
@@ -443,8 +443,8 @@ def run(
             or layout.planetary_seal_path
         ):
             try:
-                from layout_raster import layout_to_png_bytes
-                from stego_png import embed_lsb, pack_payload as _pack
+                from sigil_forge.layout_raster import layout_to_png_bytes
+                from sigil_forge.stego_png import embed_lsb, pack_payload as _pack
 
                 seal_strokes = layout.planetary_seal_strokes or (
                     [layout.planetary_seal_path] if layout.planetary_seal_path else None
@@ -472,7 +472,7 @@ def run(
         if write_polish:
             import json as _json
 
-            from prompt_polish import build_prompt
+            from sigil_forge.prompt_polish import build_prompt
 
             stroke_count = (1 if layout.monogram_points else 0) + (
                 1 if layout.kamea_points else 0
@@ -703,8 +703,8 @@ def run(
 
         # SF11 / v2 carrier bind: inject root into SVG metadata + PNG LSB (after root known)
         try:
-            from stego_envelope import pack_sf11
-            from stego_svg import inject_sigil_root
+            from sigil_forge.stego_envelope import pack_sf11
+            from sigil_forge.stego_svg import inject_sigil_root
 
             svg_path = staging / "glyph.svg"
             if svg_path.is_file():
@@ -714,7 +714,7 @@ def run(
                 )
             png_path = staging / "glyph.png"
             if png_path.is_file():
-                from stego_png import embed_lsb, read_rgb_png, write_rgb_png
+                from sigil_forge.stego_png import embed_lsb, read_rgb_png, write_rgb_png
 
                 raw_png = png_path.read_bytes()
                 w, h, rgb = read_rgb_png(raw_png)
@@ -746,7 +746,7 @@ def run(
         packet["sigil_root"] = sigil_root
 
         # ZK companion commitment (fixed-width preimage for circuits)
-        from proofs.zk_commit import zk_commit
+        from sigil_forge.proofs.zk_commit import zk_commit
 
         zk_rec = zk_commit(normalized, commitment_rec["nonce"])
         packet["intent_commitment_zk"] = {
@@ -781,9 +781,9 @@ def run(
                 "forge_version": version,
                 "intent_len": zk_rec["intent_len"],
             }
-            from proofs.local_knowledge import LocalCapsuleProvider
-            from proofs.manifest import write_proof_manifest
-            from proofs.noir_provider import NoirProvider
+            from sigil_forge.proofs.local_knowledge import LocalCapsuleProvider
+            from sigil_forge.proofs.manifest import write_proof_manifest
+            from sigil_forge.proofs.noir_provider import NoirProvider
 
             # Always write local capsule knowledge attestation when sealed
             local = LocalCapsuleProvider().prove(
@@ -842,8 +842,8 @@ def run(
                 "square_name": square_name,
                 "kamea_encoding": enc,
             }
-            from proofs.manifest import write_proof_manifest
-            from proofs.risc0_provider import Risc0Provider
+            from sigil_forge.proofs.manifest import write_proof_manifest
+            from sigil_forge.proofs.risc0_provider import Risc0Provider
 
             r0 = Risc0Provider()
             rres = r0.prove(
@@ -894,7 +894,7 @@ def run(
         write_packet_files(packet, staging)
 
         if write_receipt:
-            from receipt import (
+            from sigil_forge.receipt import (
                 append_receipt_log,
                 build_run_receipt,
                 write_receipt_file,

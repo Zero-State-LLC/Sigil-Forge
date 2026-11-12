@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 
-from crypto_domains import FORGE_SEED_V1, WALLPAPER_SEED_V1
+from sigil_forge.crypto_domains import FORGE_SEED_V1, WALLPAPER_SEED_V1
 
 
 def hkdf_extract(salt: bytes, ikm: bytes) -> bytes:

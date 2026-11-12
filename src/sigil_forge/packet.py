@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from policy_lint import assert_no_efficacy
+from sigil_forge.policy_lint import assert_no_efficacy
 
 SCHEMA_VERSION = "1.2"
 

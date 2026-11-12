@@ -28,7 +28,7 @@ def cmd_check(_: argparse.Namespace) -> int:
     import importlib
     import tempfile
 
-    from paths import skill_root
+    from sigil_forge.paths import skill_root
 
     root = skill_root()
     required = [
@@ -167,7 +167,7 @@ def cmd_check(_: argparse.Namespace) -> int:
     module_errors: list[str] = []
     for name in modules:
         try:
-            importlib.import_module(name)
+            importlib.import_module(f"sigil_forge.{name}")
         except Exception as exc:  # noqa: BLE001
             module_errors.append(f"{name}: {exc}")
     modules_ok = not module_errors
@@ -177,7 +177,7 @@ def cmd_check(_: argparse.Namespace) -> int:
     hermes_errors: list[str] = []
     description_chars = 0
     try:
-        from validate_hermes_skill import MAX_DESCRIPTION, validate as validate_hermes
+        from sigil_forge.validate_hermes_skill import MAX_DESCRIPTION, validate as validate_hermes
 
         hermes_report = validate_hermes(root / "SKILL.md")
         hermes_ok = bool(hermes_report.get("ok"))
@@ -200,8 +200,8 @@ def cmd_check(_: argparse.Namespace) -> int:
     poi_ok = False
     construct_error: str | None = None
     try:
-        from construct import run as construct_run
-        from verify import run as verify_run
+        from sigil_forge.construct import run as construct_run
+        from sigil_forge.verify import run as verify_run
 
         with tempfile.TemporaryDirectory(prefix="sigil-forge-check-") as tmp:
             # write_receipt=False: never append receipt logs during check
@@ -276,7 +276,7 @@ def cmd_check(_: argparse.Namespace) -> int:
 
 
 def cmd_construct(args: argparse.Namespace) -> int:
-    from construct import resolve_passphrase, run as construct_run
+    from sigil_forge.construct import resolve_passphrase, run as construct_run
 
     # Explicit --passphrase wins over SIGIL_FORGE_PASSPHRASE when both set.
     passphrase = resolve_passphrase(args.passphrase)
@@ -374,7 +374,7 @@ def cmd_construct(args: argparse.Namespace) -> int:
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
-    from verify import run as verify_run
+    from sigil_forge.verify import run as verify_run
 
     result = verify_run(
         Path(args.artifact),
@@ -386,7 +386,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 def cmd_inspect(args: argparse.Namespace) -> int:
     """Inspect public carrier for digest / sigil_root (no plaintext intent)."""
-    from inspect_artifact import inspect_path
+    from sigil_forge.inspect_artifact import inspect_path
 
     result = inspect_path(args.artifact)
     print(json.dumps(result, indent=2, sort_keys=True))
@@ -395,8 +395,8 @@ def cmd_inspect(args: argparse.Namespace) -> int:
 
 def cmd_verify_proof(args: argparse.Namespace) -> int:
     """Verify proof-of-intent artifacts for a forge run (no plaintext intent out)."""
-    from construct import resolve_passphrase
-    from proofs.verify_run import verify_proof_run
+    from sigil_forge.construct import resolve_passphrase
+    from sigil_forge.proofs.verify_run import verify_proof_run
 
     passphrase = resolve_passphrase(getattr(args, "passphrase", None))
     result = verify_proof_run(args.run, passphrase=passphrase)
@@ -406,8 +406,8 @@ def cmd_verify_proof(args: argparse.Namespace) -> int:
 
 def cmd_open(args: argparse.Namespace) -> int:
     """Decrypt sealed packet, capsule, or wallpaper SF12 vault (product carrier)."""
-    from construct import resolve_passphrase
-    from crypto_payload import open_intent
+    from sigil_forge.construct import resolve_passphrase
+    from sigil_forge.crypto_payload import open_intent
 
     path = Path(args.packet)
     if not path.is_file():
@@ -430,7 +430,7 @@ def cmd_open(args: argparse.Namespace) -> int:
     if getattr(args, "wallpaper", False) or path.suffix.lower() == ".png":
         if getattr(args, "wallpaper", False) or path.suffix.lower() == ".png":
             try:
-                from wallpaper.vault import open_wallpaper_vault
+                from sigil_forge.wallpaper.vault import open_wallpaper_vault
 
                 # Only treat as vault when --wallpaper or SF12 probe succeeds
                 if getattr(args, "wallpaper", False):
@@ -452,7 +452,7 @@ def cmd_open(args: argparse.Namespace) -> int:
         # last chance: png vault without --wallpaper flag
         if path.suffix.lower() == ".png":
             try:
-                from wallpaper.vault import open_wallpaper_vault
+                from sigil_forge.wallpaper.vault import open_wallpaper_vault
 
                 result = open_wallpaper_vault(path, passphrase)
                 if args.json:
@@ -468,7 +468,7 @@ def cmd_open(args: argparse.Namespace) -> int:
 
     # Capsule mode: open intent-capsule.json sealed witness
     if getattr(args, "capsule", False):
-        from intent_capsule import open_capsule
+        from sigil_forge.intent_capsule import open_capsule
 
         try:
             witness = open_capsule(data, passphrase)
@@ -537,7 +537,7 @@ def cmd_open(args: argparse.Namespace) -> int:
 
 def cmd_learn(args: argparse.Namespace) -> int:
     """Append a PROPOSED learning-ledger observation (never auto-canon)."""
-    from receipt import append_ledger, build_ledger_entry
+    from sigil_forge.receipt import append_ledger, build_ledger_entry
 
     channels = []
     if args.channels:
@@ -571,7 +571,7 @@ def cmd_learn(args: argparse.Namespace) -> int:
 
 def cmd_ledger(args: argparse.Namespace) -> int:
     """List / export PROPOSED ledger entries or human-gated promote to proposals."""
-    from receipt import (
+    from sigil_forge.receipt import (
         default_canon_proposals_path,
         default_ledger_path,
         export_proposed,
@@ -649,7 +649,7 @@ def cmd_ledger(args: argparse.Namespace) -> int:
 
 def cmd_policy(args: argparse.Namespace) -> int:
     """Lint text for efficacy claims and authority-seal requests (CI / agents)."""
-    from policy_lint import detect_authority_seal_request, lint_efficacy_text
+    from sigil_forge.policy_lint import detect_authority_seal_request, lint_efficacy_text
 
     if getattr(args, "policy_cmd", None) != "check":
         print(
@@ -700,8 +700,8 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     import importlib
     import platform
 
-    from crypto_payload import argon2_available
-    from paths import skill_root
+    from sigil_forge.crypto_payload import argon2_available
+    from sigil_forge.paths import skill_root
 
     root = skill_root()
     missing = [
@@ -734,13 +734,13 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         "proofs.registry",
     ):
         try:
-            importlib.import_module(name)
+            importlib.import_module(f"sigil_forge.{name}")
         except Exception as exc:  # noqa: BLE001
             module_errors.append(f"{name}: {exc}")
 
     proof_providers: list[dict] = []
     try:
-        from proofs.registry import list_providers
+        from sigil_forge.proofs.registry import list_providers
 
         proof_providers = list_providers()
     except Exception as exc:  # noqa: BLE001
@@ -750,7 +750,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     hermes_errors: list[str] = []
     description_chars = 0
     try:
-        from validate_hermes_skill import MAX_DESCRIPTION, validate as validate_hermes
+        from sigil_forge.validate_hermes_skill import MAX_DESCRIPTION, validate as validate_hermes
 
         hr = validate_hermes(root / "SKILL.md")
         hermes_ok = bool(hr.get("ok"))
@@ -785,7 +785,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         "hermes_skill_dir_env": __import__("os").environ.get("HERMES_SKILL_DIR"),
     }
     try:
-        from layout_raster import layout_to_png_bytes
+        from sigil_forge.layout_raster import layout_to_png_bytes
 
         png = layout_to_png_bytes([(10.0, 10.0), (90.0, 90.0)], [])
         report["layout_raster_bytes"] = len(png)
@@ -799,7 +799,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
 
 def _wallpaper_kwargs(args: argparse.Namespace) -> dict:
     """Shared kwargs for wallpaper pipeline from CLI namespace."""
-    from construct import resolve_passphrase
+    from sigil_forge.construct import resolve_passphrase
 
     # Wallpaper presentation mode: wallpaper cmd uses --mode; construct uses --wp-mode
     # (construct already owns --mode for creative|practice framing).
@@ -830,7 +830,7 @@ def _wallpaper_kwargs(args: argparse.Namespace) -> dict:
 
 
 def _run_wallpapers(run_dir: Path, args: argparse.Namespace) -> list[dict]:
-    from wallpaper.pipeline import build_wallpaper, build_wallpapers_for_run
+    from sigil_forge.wallpaper.pipeline import build_wallpaper, build_wallpapers_for_run
 
     kwargs = _wallpaper_kwargs(args)
     if getattr(args, "surface", None):
@@ -866,7 +866,7 @@ def cmd_wallpaper(args: argparse.Namespace) -> int:
 
 def cmd_wizard(args: argparse.Namespace) -> int:
     """Hermes-facing guided forge wizard (step runner + apply)."""
-    from wizard import (
+    from sigil_forge.wizard import (
         apply_answers,
         create_session,
         default_answers,
@@ -883,7 +883,7 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     path = getattr(args, "path", None) or "full"
 
     if getattr(args, "list_corpus", False):
-        from planetary_corpus import list_corpus_summary, load_corpus
+        from sigil_forge.planetary_corpus import list_corpus_summary, load_corpus
 
         data = load_corpus()
         print(
@@ -1031,10 +1031,10 @@ def cmd_eval(_: argparse.Namespace) -> int:
     """Offline behavioral evals for method corpus honesty."""
     import tempfile
 
-    from construct import run as construct_run
-    from policy_lint import lint_efficacy_text
-    from receipt import append_learning_entry
-    from safety import check_intent
+    from sigil_forge.construct import run as construct_run
+    from sigil_forge.policy_lint import lint_efficacy_text
+    from sigil_forge.receipt import append_learning_entry
+    from sigil_forge.safety import check_intent
 
     cases: list[dict] = []
     ok_all = True
@@ -1174,9 +1174,9 @@ def cmd_eval(_: argparse.Namespace) -> int:
 
     # Hermes skill packaging (frontmatter + pure core import)
     try:
-        from forge_core import ForgeConfig, compute_forge
-        from normalize import normalize_intent
-        from validate_hermes_skill import validate as validate_hermes
+        from sigil_forge.forge_core import ForgeConfig, compute_forge
+        from sigil_forge.normalize import normalize_intent
+        from sigil_forge.validate_hermes_skill import validate as validate_hermes
 
         hr = validate_hermes()
         rec("hermes_frontmatter", bool(hr.get("ok")), str(hr.get("errors") or ""))

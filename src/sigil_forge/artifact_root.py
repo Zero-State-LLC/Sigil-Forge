@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from crypto_domains import MERKLE_LEAF_V1, MERKLE_NODE_V1, domain_sha256
+from sigil_forge.crypto_domains import MERKLE_LEAF_V1, MERKLE_NODE_V1, domain_sha256
 
 
 def _as_bytes(value: str | bytes) -> bytes:

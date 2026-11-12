@@ -12,10 +12,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from crypto_payload import intent_digest
-from fuse import Layout, build_layout
-from kamea import DEFAULT_KAMEA_ENCODING, KAMEA_SQUARES
-from spare import reduce_letters
+from sigil_forge.crypto_payload import intent_digest
+from sigil_forge.fuse import Layout, build_layout
+from sigil_forge.kamea import DEFAULT_KAMEA_ENCODING, KAMEA_SQUARES
+from sigil_forge.spare import reduce_letters
 
 
 @dataclass(frozen=True)

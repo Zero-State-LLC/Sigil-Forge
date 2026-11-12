@@ -275,7 +275,7 @@ def assert_not_entity_seal_request(intent: str) -> None:
     Uses policy_lint.detect_authority_seal_request so construct and wizard share
     one authority-seal classifier (no silent Spare/kamea substitution).
     """
-    from policy_lint import detect_authority_seal_request
+    from sigil_forge.policy_lint import detect_authority_seal_request
 
     hit, fam = detect_authority_seal_request(intent)
     if hit:

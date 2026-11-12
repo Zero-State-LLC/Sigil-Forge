@@ -7,10 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from construct import run as construct_run
-from wallpaper.pipeline import build_wallpaper
-from wallpaper.seed import file_sha256, wallpaper_seed
-from wallpaper.spec import build_wallpaper_spec
+from sigil_forge.construct import run as construct_run
+from sigil_forge.wallpaper.pipeline import build_wallpaper
+from sigil_forge.wallpaper.seed import file_sha256, wallpaper_seed
+from sigil_forge.wallpaper.spec import build_wallpaper_spec
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"

@@ -24,9 +24,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import default_session_dir, ensure_private_dir, write_private_text
-from policy_lint import detect_authority_seal_request
-from safety import check_intent
+from sigil_forge.paths import default_session_dir, ensure_private_dir, write_private_text
+from sigil_forge.policy_lint import detect_authority_seal_request
+from sigil_forge.safety import check_intent
 
 WIZARD_VERSION = "2.1.0"
 PATHS = ("quick", "full")
@@ -673,7 +673,7 @@ def apply_answers(
     path: str = "full",
 ) -> dict[str, Any]:
     """Validate answers, construct forge packet, optional wallpaper."""
-    from construct import resolve_passphrase, run as construct_run
+    from sigil_forge.construct import resolve_passphrase, run as construct_run
 
     report = validate_answers(answers, path=path)
     if not report["ok"]:
@@ -740,7 +740,7 @@ def apply_answers(
 
     wp = mapped["wallpaper"]
     if wp.get("enabled"):
-        from wallpaper.pipeline import build_wallpaper
+        from sigil_forge.wallpaper.pipeline import build_wallpaper
 
         run_dir = packet.get("artifacts", {}).get("run_dir")
         try:
@@ -887,7 +887,7 @@ def load_session(session_id: str) -> dict[str, Any]:
     sp = session_path(session_id)
     if not sp.is_file():
         # Read legacy package sessions without deleting or moving operator data.
-        from paths import skill_root
+        from sigil_forge.paths import skill_root
         legacy = skill_root() / "out" / "wizard-sessions" / f"{_safe_session_id(session_id)}.json"
         if legacy.is_file():
             sp = legacy

@@ -6,7 +6,7 @@ import hashlib
 import os
 from typing import Any
 
-from aes_gcm_pure import aes_gcm_decrypt, aes_gcm_encrypt
+from sigil_forge.aes_gcm_pure import aes_gcm_decrypt, aes_gcm_encrypt
 
 # OWASP Password Storage Cheat Sheet floor for PBKDF2-HMAC-SHA256. Blobs record
 # their own count, so images sealed at the earlier 200,000 still open.

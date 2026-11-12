@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import default_state_root, ensure_private_dir, skill_root
+from sigil_forge.paths import default_state_root, ensure_private_dir, skill_root
 
 RECEIPT_SCHEMA_VERSION = "1.0"
 LEDGER_SCHEMA_VERSION = "1.0"

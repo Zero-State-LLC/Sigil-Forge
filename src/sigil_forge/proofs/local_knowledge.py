@@ -15,10 +15,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from commitment import verify_commitment, nonce_from_b64
-from intent_capsule import open_capsule
-from proofs.base import ProofResult
-from proofs.zk_commit import verify_zk_commit
+from sigil_forge.commitment import verify_commitment, nonce_from_b64
+from sigil_forge.intent_capsule import open_capsule
+from sigil_forge.proofs.base import ProofResult
+from sigil_forge.proofs.zk_commit import verify_zk_commit
 
 
 class LocalCapsuleProvider:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from proofs.base import ProofResult
+from sigil_forge.proofs.base import ProofResult
 
 
 class NoneProvider:

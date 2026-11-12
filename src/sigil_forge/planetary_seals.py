@@ -16,9 +16,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from kamea import KAMEA_SQUARES, PLANET_ORDER, build_kamea_path, select_square
-from planetary_corpus import entity_name_for_path, load_corpus, role_entry
-from plate_strokes import flatten_primary, resolve_plate_entry
+from sigil_forge.kamea import KAMEA_SQUARES, PLANET_ORDER, build_kamea_path, select_square
+from sigil_forge.planetary_corpus import entity_name_for_path, load_corpus, role_entry
+from sigil_forge.plate_strokes import flatten_primary, resolve_plate_entry
 
 
 GEOMETRY_MODES = ("auto", "plate", "name_on_kamea", "reconstruction")

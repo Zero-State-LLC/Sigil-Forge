@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from policy_lint import assert_no_efficacy
+from sigil_forge.policy_lint import assert_no_efficacy
 
 
 def _seed_from_digest(digest: str) -> int:

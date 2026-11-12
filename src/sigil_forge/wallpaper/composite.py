@@ -9,8 +9,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from stego_png import write_rgb_png
-from wallpaper.seed import file_sha256
+from sigil_forge.stego_png import write_rgb_png
+from sigil_forge.wallpaper.seed import file_sha256
 
 # --- minimal pure RGB PNG helpers for wallpaper canvas ---
 
@@ -194,7 +194,7 @@ def composite_glyph_on_background(
 def load_operator_background(path: Path, width: int, height: int) -> bytes | None:
     """Load operator PNG if it is filter-0 RGB matching size; else None."""
     try:
-        from stego_png import read_rgb_png
+        from sigil_forge.stego_png import read_rgb_png
 
         w, h, rgb = read_rgb_png(path.read_bytes())
         if w == width and h == height:

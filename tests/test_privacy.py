@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from construct import run
+from sigil_forge.construct import run
 
 
 def test_public_svg_has_no_plaintext(tmp_path: Path):

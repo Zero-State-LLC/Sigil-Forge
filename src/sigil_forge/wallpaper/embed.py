@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from stego_png import DIGEST_LEN, embed_lsb, pack_payload, write_rgb_png
-from stego_png import read_rgb_png
-from wallpaper.seed import wallpaper_payload
+from sigil_forge.stego_png import DIGEST_LEN, embed_lsb, pack_payload, write_rgb_png
+from sigil_forge.stego_png import read_rgb_png
+from sigil_forge.wallpaper.seed import wallpaper_payload
 
 
 def embed_binding(
@@ -45,7 +45,7 @@ def embed_binding(
         if mode == "vault":
             if not sealed_blob:
                 return None
-            from wallpaper.vault import embed_vault_png
+            from sigil_forge.wallpaper.vault import embed_vault_png
 
             return embed_vault_png(
                 png_path,
@@ -55,7 +55,7 @@ def embed_binding(
             )
 
         if mode == "sf11" and sigil_root:
-            from stego_envelope import pack_sf11
+            from sigil_forge.stego_envelope import pack_sf11
 
             payload = pack_sf11(
                 intent_digest=intent_digest, sigil_root=sigil_root
@@ -80,7 +80,7 @@ def embed_binding(
         clean = write_rgb_png(w, h, rgb)
         out = embed_lsb(clean, payload)
         png_path.write_bytes(out)
-        from wallpaper.seed import file_sha256
+        from sigil_forge.wallpaper.seed import file_sha256
 
         return file_sha256(str(png_path))
     except Exception:

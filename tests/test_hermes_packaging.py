@@ -207,7 +207,7 @@ def _frontmatter_raw() -> str:
 
 def test_validator_passes_without_pyyaml(monkeypatch):
     """README promises a stdlib-only core path; install.sh runs this validator."""
-    import validate_hermes_skill as v
+    from sigil_forge import validate_hermes_skill as v
 
     monkeypatch.setattr(v, "yaml", None)
     report = v.validate()
@@ -220,7 +220,7 @@ def test_validator_passes_without_pyyaml(monkeypatch):
 
 def test_stdlib_frontmatter_parse_matches_pyyaml():
     yaml = pytest.importorskip("yaml")
-    import validate_hermes_skill as v
+    from sigil_forge import validate_hermes_skill as v
 
     assert v._parse_minimal_yaml(_frontmatter_raw()) == yaml.safe_load(
         _frontmatter_raw()
@@ -260,7 +260,7 @@ def test_stdlib_frontmatter_parse_matches_pyyaml():
     ],
 )
 def test_stdlib_frontmatter_parse_fails_closed(frontmatter):
-    import validate_hermes_skill as v
+    from sigil_forge import validate_hermes_skill as v
 
     with pytest.raises(ValueError):
         v._parse_minimal_yaml(frontmatter)
@@ -283,7 +283,7 @@ def test_stdlib_frontmatter_parse_fails_closed(frontmatter):
 )
 def test_stdlib_frontmatter_parse_accepted_snippets_match_pyyaml(frontmatter):
     yaml = pytest.importorskip("yaml")
-    import validate_hermes_skill as v
+    from sigil_forge import validate_hermes_skill as v
 
     assert v._parse_minimal_yaml(frontmatter) == yaml.safe_load(frontmatter)
 

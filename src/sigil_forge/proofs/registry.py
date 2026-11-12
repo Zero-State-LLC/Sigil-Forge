@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from proofs.local_knowledge import LocalCapsuleProvider
-from proofs.noir_provider import NoirProvider
-from proofs.none_provider import NoneProvider
-from proofs.risc0_provider import Risc0Provider
+from sigil_forge.proofs.local_knowledge import LocalCapsuleProvider
+from sigil_forge.proofs.noir_provider import NoirProvider
+from sigil_forge.proofs.none_provider import NoneProvider
+from sigil_forge.proofs.risc0_provider import Risc0Provider
 
 _PROVIDERS = {
     "none": NoneProvider,

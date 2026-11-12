@@ -6,9 +6,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-from stego_png import DIGEST_LEN, MAGIC, extract_lsb
-from stego_svg import expected_epsilon_bits
-from stego_svg import extract as extract_svg
+from sigil_forge.stego_png import DIGEST_LEN, MAGIC, extract_lsb
+from sigil_forge.stego_svg import expected_epsilon_bits
+from sigil_forge.stego_svg import extract as extract_svg
 
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -212,7 +212,7 @@ def _verify_png(path: Path, expected_digest: str | None = None) -> dict[str, Any
     data = path.read_bytes()
     channels: list[str] = []
     try:
-        from stego_envelope import SF11_MAGIC, unpack_envelope
+        from sigil_forge.stego_envelope import SF11_MAGIC, unpack_envelope
 
         # Peek magic: SF1 needs 36 bytes; SF11 needs 74
         peek = extract_lsb(data, 4)

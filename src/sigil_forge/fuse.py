@@ -6,15 +6,15 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
-from bind_runes import build_bind_polylines
-from kamea import (
+from sigil_forge.bind_runes import build_bind_polylines
+from sigil_forge.kamea import (
     DEFAULT_KAMEA_ENCODING,
     KAMEA_SQUARES,
     build_kamea_path,
     select_square,
 )
-from rose_cross import build_rose_cross_path
-from spare import run_spare
+from sigil_forge.rose_cross import build_rose_cross_path
+from sigil_forge.spare import run_spare
 
 # Canvas is always 0..100
 CANVAS = 100.0
@@ -129,7 +129,7 @@ def build_layout(
     seal_strokes: list[list[tuple[float, float]]] = []
     seal_dict: dict[str, Any] = {}
     if include_planetary_seal:
-        from planetary_seals import seal_for
+        from sigil_forge.planetary_seals import seal_for
 
         art = seal_for(
             square_name,

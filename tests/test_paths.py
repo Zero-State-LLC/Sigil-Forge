@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import scripts.paths as paths
+from sigil_forge import paths
 
 
 def test_skill_root_contains_scripts():
@@ -33,8 +33,8 @@ def _mode(p):
 @pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
 def test_default_state_and_sessions_are_owner_only(tmp_path, monkeypatch, request):
     """Sessions hold plaintext intent; default state must not be world-readable."""
-    import wizard
-    from construct import run as construct_run
+    from sigil_forge import wizard
+    from sigil_forge.construct import run as construct_run
 
     monkeypatch.setenv("SIGIL_FORGE_STATE_DIR", str(tmp_path / "state"))
     previous = os.umask(0o022)  # assert under a permissive umask
@@ -166,7 +166,7 @@ def test_tilde_is_expanded(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
 def test_wizard_session_lands_under_sigil_forge_home(tmp_path, monkeypatch, request):
-    import wizard
+    from sigil_forge import wizard
 
     _clean(monkeypatch, tmp_path)
     home = tmp_path / "sf"

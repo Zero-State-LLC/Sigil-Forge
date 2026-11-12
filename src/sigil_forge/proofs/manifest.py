@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from proofs.base import ProofResult
+from sigil_forge.proofs.base import ProofResult
 
 
 def write_proof_manifest(

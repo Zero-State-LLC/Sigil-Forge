@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 
-from commitment import NONCE_LEN
+from sigil_forge.commitment import NONCE_LEN
 
 MAX_INTENT_BYTES = 256
 

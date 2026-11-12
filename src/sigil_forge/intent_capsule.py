@@ -10,13 +10,13 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from commitment import (
+from sigil_forge.commitment import (
     nonce_b64,
     nonce_from_b64,
     public_commitment,
     verify_commitment,
 )
-from crypto_payload import open_intent, seal_intent
+from sigil_forge.crypto_payload import open_intent, seal_intent
 
 
 def build_capsule(
@@ -64,7 +64,7 @@ def build_capsule(
         "commitment": public_commitment(commitment_record),
         "compatibility": {
             "intent_digest": __import__(
-                "crypto_payload", fromlist=["intent_digest"]
+                "sigil_forge.crypto_payload", fromlist=["intent_digest"]
             ).intent_digest(normalized),
         },
         "sealed_witness": {

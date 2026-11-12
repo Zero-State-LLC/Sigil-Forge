@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from construct import run as construct_run
-from planetary_corpus import list_corpus_summary, load_corpus, role_entry
-from planetary_seals import intelligence_character, spirit_character, traditional_seal_path
-from kamea import encode_hebrew_gematria
+from sigil_forge.construct import run as construct_run
+from sigil_forge.planetary_corpus import list_corpus_summary, load_corpus, role_entry
+from sigil_forge.planetary_seals import intelligence_character, spirit_character, traditional_seal_path
+from sigil_forge.kamea import encode_hebrew_gematria
 
 ROOT = Path(__file__).resolve().parents[1]
 

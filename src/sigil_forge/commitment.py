@@ -12,7 +12,7 @@ import base64
 import os
 from typing import Any
 
-from crypto_domains import DOMAIN_STR, INTENT_COMMITMENT_V1, domain_sha256_hex
+from sigil_forge.crypto_domains import DOMAIN_STR, INTENT_COMMITMENT_V1, domain_sha256_hex
 
 SCHEME = "sha256-salted-v1"
 NONCE_LEN = 32

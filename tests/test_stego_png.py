@@ -1,7 +1,7 @@
 """PNG LSB stego: pure-Python RGB PNG + synthetic round-trip (no SVG raster)."""
 
-from stego_png import embed_lsb, extract_lsb, pack_payload, read_rgb_png, write_rgb_png
-from raster_svg import svg_to_png_bytes
+from sigil_forge.stego_png import embed_lsb, extract_lsb, pack_payload, read_rgb_png, write_rgb_png
+from sigil_forge.raster_svg import svg_to_png_bytes
 
 
 def test_lsb_roundtrip_synthetic():
@@ -77,7 +77,7 @@ def test_read_rgb_png_refuses_idat_larger_than_ihdr():
 
     import pytest
 
-    from stego_png import _chunk
+    from sigil_forge.stego_png import _chunk
 
     png = (
         b"\x89PNG\r\n\x1a\n"
@@ -96,7 +96,7 @@ def test_read_rgb_png_truncated_idat_still_raises_zlib_error():
 
     import pytest
 
-    from stego_png import _chunk
+    from sigil_forge.stego_png import _chunk
 
     png = (
         b"\x89PNG\r\n\x1a\n"
@@ -114,7 +114,7 @@ def test_read_rgb_png_refuses_oversized_or_empty_header():
 
     import pytest
 
-    from stego_png import MAX_PNG_PIXELS, _chunk
+    from sigil_forge.stego_png import MAX_PNG_PIXELS, _chunk
 
     def png(width, height):
         return (

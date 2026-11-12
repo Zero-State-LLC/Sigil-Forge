@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from proofs.manifest import load_proof_manifest
-from proofs.registry import get_provider
+from sigil_forge.proofs.manifest import load_proof_manifest
+from sigil_forge.proofs.registry import get_provider
 
 
 def verify_proof_run(

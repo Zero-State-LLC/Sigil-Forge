@@ -6,16 +6,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-from wallpaper.composite import (
+from sigil_forge.wallpaper.composite import (
     composite_glyph_on_background,
     write_wallpaper_png,
 )
-from wallpaper.embed import embed_binding
-from wallpaper.prompt import build_background_prompt
-from wallpaper.providers import enrich_prompt_package, resolve_background
-from wallpaper.seed import file_sha256
-from wallpaper.spec import SCHEMA_VERSION, build_wallpaper_spec, load_forge_run
-from wallpaper.verify_wallpaper import verify_wallpaper
+from sigil_forge.wallpaper.embed import embed_binding
+from sigil_forge.wallpaper.prompt import build_background_prompt
+from sigil_forge.wallpaper.providers import enrich_prompt_package, resolve_background
+from sigil_forge.wallpaper.seed import file_sha256
+from sigil_forge.wallpaper.spec import SCHEMA_VERSION, build_wallpaper_spec, load_forge_run
+from sigil_forge.wallpaper.verify_wallpaper import verify_wallpaper
 
 
 def build_wallpaper(
@@ -163,11 +163,11 @@ def build_wallpaper(
             # Fall back to public SF11 so wallpaper still binds digests
             embed_mode = "sf11" if packet.get("sigil_root") else "intent_digest"
         else:
-            from wallpaper.vault import build_vault_document, seal_vault
+            from sigil_forge.wallpaper.vault import build_vault_document, seal_vault
 
             version = "0.0.0"
             try:
-                from paths import skill_root
+                from sigil_forge.paths import skill_root
 
                 vpath = skill_root() / "VERSION"
                 if vpath.is_file():

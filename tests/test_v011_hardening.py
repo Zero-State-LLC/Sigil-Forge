@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from construct import PASSPHRASE_ENV, resolve_passphrase, run as construct_run
-from stego_svg import expected_epsilon_bits, extract as extract_svg
-from verify import run as verify_run
+from sigil_forge.construct import PASSPHRASE_ENV, resolve_passphrase, run as construct_run
+from sigil_forge.stego_svg import expected_epsilon_bits, extract as extract_svg
+from sigil_forge.verify import run as verify_run
 
 
 def test_resolve_passphrase_env_and_explicit(monkeypatch: pytest.MonkeyPatch):
@@ -91,7 +91,7 @@ def test_verify_epsilon_bits_match_digest(tmp_path: Path):
     # Simpler: corrupt digest in metadata so metrics still pass format but
     # epsilon stream won't match the forged metadata digest. Replace d= hex in
     # base64 is hard; instead flip epsilon by rewriting first points float off-grid.
-    from stego_svg import EPS, _decode_float_bit, _encode_float_bit
+    from sigil_forge.stego_svg import EPS, _decode_float_bit, _encode_float_bit
 
     def flip_points(m: re.Match[str]) -> str:
         quote = m.group(1)

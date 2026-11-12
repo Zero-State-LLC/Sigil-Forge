@@ -6,15 +6,15 @@ import json
 from pathlib import Path
 from typing import Any
 
-from wallpaper.profiles import (
+from sigil_forge.wallpaper.profiles import (
     SURFACE_CANVAS,
     SYMBOLIC_THEMES,
     placement_xy,
     resolve_opacity,
     resolve_scale,
 )
-from wallpaper.safe_zones import zones_for
-from wallpaper.seed import file_sha256, wallpaper_seed
+from sigil_forge.wallpaper.safe_zones import zones_for
+from sigil_forge.wallpaper.seed import file_sha256, wallpaper_seed
 
 SCHEMA_VERSION = "1.0.0"
 

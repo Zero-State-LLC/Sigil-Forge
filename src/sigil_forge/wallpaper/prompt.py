@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from wallpaper.profiles import STYLE_PRESETS
+from sigil_forge.wallpaper.profiles import STYLE_PRESETS
 
 NEGATIVE = (
     "text, typography, letters, writing, numbers, watermark, logo, rune, runes, "

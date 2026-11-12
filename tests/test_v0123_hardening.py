@@ -9,14 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from commitment import commit_intent, public_commitment, verify_commitment
-from construct import run as construct_run
-from forge_core import ForgeConfig, compute_forge
-from intent_capsule import open_capsule
-from normalize import normalize_intent
-from proofs.registry import list_providers
-from proofs.risc0_provider import Risc0Provider
-from proofs.zk_commit import verify_zk_commit, zk_commit
+from sigil_forge.commitment import commit_intent, public_commitment, verify_commitment
+from sigil_forge.construct import run as construct_run
+from sigil_forge.forge_core import ForgeConfig, compute_forge
+from sigil_forge.intent_capsule import open_capsule
+from sigil_forge.normalize import normalize_intent
+from sigil_forge.proofs.registry import list_providers
+from sigil_forge.proofs.risc0_provider import Risc0Provider
+from sigil_forge.proofs.zk_commit import verify_zk_commit, zk_commit
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"
@@ -96,7 +96,7 @@ def test_construct_dual_commit_capsule_bind(tmp_path: Path):
     assert "commitment_nonce" not in dumped
     # Capsule open recovers intent; commitments re-verify
     w = open_capsule(cap, "dual-bind-pass")
-    from commitment import nonce_from_b64
+    from sigil_forge.commitment import nonce_from_b64
 
     nonce = nonce_from_b64(w["commitment_nonce_b64"])
     assert verify_commitment(w["normalized_intent"], nonce, c)

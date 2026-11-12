@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fuse import Layout
+from sigil_forge.fuse import Layout
 
 
 def _fmt_pt(p: tuple[float, float]) -> str:

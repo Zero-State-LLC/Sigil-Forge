@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from stego_envelope import unpack_envelope
-from stego_png import extract_lsb
-from stego_svg import extract as extract_svg
+from sigil_forge.stego_envelope import unpack_envelope
+from sigil_forge.stego_png import extract_lsb
+from sigil_forge.stego_svg import extract as extract_svg
 
 
 def inspect_path(path: Path | str) -> dict[str, Any]:

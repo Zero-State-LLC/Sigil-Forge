@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from artifact_root import merkle_root
-from commitment import commit_intent, public_commitment, verify_commitment
-from construct import run as construct_run
-from crypto_domains import INTENT_COMMITMENT_V1, domain_join, domain_sha256
-from crypto_payload import argon2_available, resolve_kdf
-from derivation import hkdf_sha256
-from forge_manifest import build_forge_manifest, manifest_digest
-from intent_capsule import build_capsule, open_capsule
+from sigil_forge.artifact_root import merkle_root
+from sigil_forge.commitment import commit_intent, public_commitment, verify_commitment
+from sigil_forge.construct import run as construct_run
+from sigil_forge.crypto_domains import INTENT_COMMITMENT_V1, domain_join, domain_sha256
+from sigil_forge.crypto_payload import argon2_available, resolve_kdf
+from sigil_forge.derivation import hkdf_sha256
+from sigil_forge.forge_manifest import build_forge_manifest, manifest_digest
+from sigil_forge.intent_capsule import build_capsule, open_capsule
 
 
 def test_domain_join_length_prefix_unambiguous():
