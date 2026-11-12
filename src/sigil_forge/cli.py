@@ -10,7 +10,7 @@ from pathlib import Path
 def cmd_help(_: argparse.Namespace) -> int:
     print(
         "sigil-forge — multi-channel intent sigils (Hermes skill)\n"
-        "commands: construct | verify | verify-proof | inspect | wallpaper | wizard | open | learn | ledger | "
+        "commands: construct | storyboard | verify | verify-proof | inspect | wallpaper | wizard | open | learn | ledger | "
         "policy | doctor | eval | check | help\n"
         "Product: wallpaper PNG with SF12 sealed vault (intent + methods in-image).\n"
         "See SKILL.md, QUICKSTART.md, references/hermes-runtime-contract.md\n"
@@ -370,6 +370,65 @@ def cmd_construct(args: argparse.Namespace) -> int:
         if wallpaper_results is not None:
             summary["wallpapers"] = wallpaper_results
         print(json.dumps(summary, indent=2))
+    return 0
+
+
+INTENTS_FILE_MAX_BYTES = 64 * 1024
+
+
+def _read_intents_file(path: Path) -> list[str]:
+    """One intent per line; blank lines and lines starting with ``#`` skipped."""
+    size = path.stat().st_size
+    if size > INTENTS_FILE_MAX_BYTES:
+        raise ValueError(
+            f"intents file is {size} bytes; limit is {INTENTS_FILE_MAX_BYTES}"
+        )
+    out: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            out.append(stripped)
+    return out
+
+
+def cmd_storyboard(args: argparse.Namespace) -> int:
+    from sigil_forge.construct import resolve_passphrase
+    from sigil_forge.storyboard import StoryboardUsageError, build_storyboard
+
+    intents: list[str] = []
+    try:
+        if args.intents_file:
+            intents.extend(_read_intents_file(Path(args.intents_file)))
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
+        return 2
+    intents.extend(args.intent or [])  # file frames first, then --intent in order
+
+    try:
+        board = build_storyboard(
+            intents,
+            out_root=Path(args.out) if args.out else None,
+            passphrase=resolve_passphrase(args.passphrase),
+            seal_packet=bool(args.seal_packet),
+        )
+    except StoryboardUsageError as exc:
+        print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
+        return 2
+    except (ValueError, RuntimeError) as exc:
+        print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
+        return 1
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "board_id": board["board_id"],
+                "index_path": board["index_path"],
+                "frames": board["frames"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
@@ -1657,6 +1716,37 @@ def main(argv: list[str] | None = None) -> int:
         help="Seal passphrase if answers.seal_packet (prefer SIGIL_FORGE_PASSPHRASE)",
     )
 
+    ps = sub.add_parser(
+        "storyboard",
+        help="Forge one run per intent (1-12 frames) plus a digest-only index",
+    )
+    ps.add_argument(
+        "--intent",
+        action="append",
+        default=None,
+        help="Frame intent; repeat for more frames (after any --intents-file frames)",
+    )
+    ps.add_argument(
+        "--intents-file",
+        default=None,
+        help="File with one intent per line (blank and # lines ignored; max 64 KiB)",
+    )
+    ps.add_argument(
+        "--out",
+        default=None,
+        help="Output root (default: same products dir as construct)",
+    )
+    ps.add_argument(
+        "--passphrase",
+        default=None,
+        help="Optional seal passphrase for every frame (prefer env SIGIL_FORGE_PASSPHRASE)",
+    )
+    ps.add_argument(
+        "--seal-packet",
+        action="store_true",
+        help="Omit plaintext intent from each packet (requires a passphrase)",
+    )
+
     pw = sub.add_parser(
         "wallpaper",
         help="Compose wallpapers from a forge run (canonical glyph + atmosphere)",
@@ -1670,6 +1760,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_check(args)
     if args.cmd == "construct":
         return cmd_construct(args)
+    if args.cmd == "storyboard":
+        return cmd_storyboard(args)
     if args.cmd == "verify":
         return cmd_verify(args)
     if args.cmd == "inspect":
