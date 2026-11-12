@@ -783,6 +783,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     import importlib
     import platform
 
+    from sigil_forge.aes_gcm import backend as aes_backend
     from sigil_forge.crypto_payload import argon2_available
     from sigil_forge.paths import skill_root
 
@@ -856,6 +857,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         if (root / "VERSION").is_file()
         else None,
         "argon2_available": argon2_available(),
+        "aes_backend": aes_backend(),
         "layout_raster": True,
         "missing": missing,
         "module_errors": module_errors,

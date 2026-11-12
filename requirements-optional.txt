@@ -2,6 +2,9 @@
 #   PyYAML       full YAML parse in scripts/validate_hermes_skill.py
 #   jsonschema   stricter packet validation
 #   argon2-cffi  Argon2id sealing (--kdf argon2id / auto)
+#   cryptography vetted AES-GCM backend; sealed files are interchangeable with the
+#                built-in pure-Python one
 PyYAML==6.0.3
 jsonschema==4.26.0
 argon2-cffi==25.1.0
+cryptography==50.0.2
