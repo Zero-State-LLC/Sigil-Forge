@@ -18,9 +18,11 @@ def _first_set(names: tuple[str, ...]) -> str | None:
 
 
 def configured_root() -> Path | None:
-    """Install root named by the environment, or None to use this checkout.
+    """Raw root named by the environment, or None.
 
-    First set of ``_ROOT_ENV`` wins, then the Hermes ``HERMES_SKILL_DIR``.
+    First set of ``_ROOT_ENV`` wins, then ``HERMES_SKILL_DIR``. This is the
+    configured value only; it is not validated as an install root. Use
+    ``skill_root()`` for the directory that actually holds the install data.
     """
     value = _first_set(_ROOT_ENV) or os.environ.get("HERMES_SKILL_DIR")
     if value:
@@ -28,8 +30,42 @@ def configured_root() -> Path | None:
     return None
 
 
+def _is_install_root(p: Path) -> bool:
+    """True when ``p`` holds both ``SKILL.md`` and ``VERSION`` (an install tree)."""
+    return (p / "SKILL.md").is_file() and (p / "VERSION").is_file()
+
+
+def _find_install_root(start: Path) -> Path | None:
+    """First of ``start`` and its parents that is an install root, else None."""
+    for candidate in (start, *start.parents):
+        if _is_install_root(candidate):
+            return candidate
+    return None
+
+
 def skill_root() -> Path:
-    return configured_root() or Path(__file__).resolve().parent.parent
+    """Directory holding the install data (``schemas/``, ``references/``, ``VERSION``).
+
+    Resolution order:
+
+    1. The first set ``SIGIL_FORGE_*`` root variable, but only if it is a real
+       install root (``SKILL.md`` and ``VERSION`` present). Otherwise it names a
+       state home only (see ``default_state_root``) and resolution continues.
+    2. ``HERMES_SKILL_DIR`` if set: authoritative, no marker check (tests and
+       the installer point it at partial trees on purpose).
+    3. Walk up from this file to the first directory that is an install root.
+    4. Fallback: the parent of ``scripts/`` (the historical behaviour).
+    """
+    value = _first_set(_ROOT_ENV)
+    if value:
+        candidate = Path(value).expanduser().resolve()
+        if _is_install_root(candidate):
+            return candidate
+    hermes = os.environ.get("HERMES_SKILL_DIR")
+    if hermes:
+        return Path(hermes).expanduser().resolve()
+    here = Path(__file__).resolve()
+    return _find_install_root(here.parent) or here.parent.parent
 
 
 def default_state_root() -> Path:
