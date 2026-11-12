@@ -105,7 +105,7 @@ Owner decides. Each was researched on 2026-11-11; the evidence is in
 | `scripts/sigil_forge.py` and `install.sh` (line 73) insert a path into `sys.path` at runtime | `OBSERVED` | `grep -rn "sys.path"` |
 | `tests/conftest.py` puts `scripts/` and the repo root on `sys.path` | `OBSERVED` | `grep -rn "sys.path"` |
 | `skill_root()` reads `HERMES_SKILL_DIR` and otherwise uses the parent of `scripts/` | `OBSERVED` | `sed -n 8,12p scripts/paths.py` |
-| No `pyproject.toml`, `setup.py` or `setup.cfg` exists | `OBSERVED` | `ls` returned "No such file" for each |
+| `pyproject.toml` exists with metadata only (step 1); no `setup.py` or `setup.cfg` | `OBSERVED` | `ls`; wheel built from it contains no modules |
 | `LICENSE` and `LICENSE_POLICY.md` exist | `OBSERVED` | `ls LICENSE*` |
 | The licence was decided on 2026-11-12 as MIT (PR #17), so `pyproject.toml` declares `license = "MIT"` | `OBSERVED` | `head -3 LICENSE`; `git log --oneline -1 origin/main` shows ba248c1 "license: relicense original Zero State materials to MIT (#17)" |
 | CI runs two legs: Python 3.10 with pytest only, and Python 3.13 with the optional extras | `OBSERVED` | `.github/workflows/ci.yml` matrix; both legs passed on #14 |
