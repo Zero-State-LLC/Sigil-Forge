@@ -204,8 +204,8 @@ def cmd_check(_: argparse.Namespace) -> int:
         from verify import run as verify_run
 
         with tempfile.TemporaryDirectory(prefix="sigil-forge-check-") as tmp:
-            # write_receipt=False: never append skill-root receipt logs during check
-            # (install post-check must not pollute ~/.hermes/skills/sigil-forge/out/)
+            # write_receipt=False: never append receipt logs during check
+            # (the check must not write receipt logs into the state home or install tree)
             packet = construct_run(
                 "I maintain calm focus while shipping Sigil-Forge",
                 mode="creative",
@@ -1509,7 +1509,7 @@ def main(argv: list[str] | None = None) -> int:
     pl.add_argument(
         "--ledger",
         default=None,
-        help="Ledger path (default: out/sigil-forge/learning-ledger.jsonl)",
+        help="Ledger path (default: $HERMES_HOME/state/sigil-forge/ledger/learning-ledger.jsonl; override: $SIGIL_FORGE_STATE_DIR/ledger/ or $SIGIL_FORGE_LEDGER)",
     )
 
     pld = sub.add_parser(
@@ -1559,7 +1559,7 @@ def main(argv: list[str] | None = None) -> int:
     pld_promote.add_argument(
         "--out",
         default=None,
-        help="Canon proposals JSONL path (default out/sigil-forge/canon-proposals.jsonl)",
+        help="Canon proposals JSONL path (default: $HERMES_HOME/state/sigil-forge/ledger/canon-proposals.jsonl; override: $SIGIL_FORGE_STATE_DIR/ledger/ or $SIGIL_FORGE_CANON_PROPOSALS)",
     )
 
     pp = sub.add_parser(

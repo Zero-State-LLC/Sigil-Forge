@@ -22,7 +22,13 @@ class StateAudit(unittest.TestCase):
                 HERMES_SKILL_DIR=str(ROOT),
             )
             env.pop("SIGIL_FORGE_STATE_DIR", None)
-            code = "import sys; sys.path.insert(0, sys.argv[1]); from paths import default_out_dir; print(default_out_dir())"
+            code = (
+                "import sys; sys.path.insert(0, sys.argv[1]); "
+                "from paths import default_out_dir; "
+                "from receipt import default_receipts_path, default_ledger_path; "
+                "print(default_out_dir()); print(default_receipts_path()); "
+                "print(default_ledger_path())"
+            )
             r = subprocess.run(
                 [sys.executable, "-c", code, str(ROOT / "scripts")],
                 cwd=tmp,
@@ -31,11 +37,11 @@ class StateAudit(unittest.TestCase):
                 text=True,
                 check=True,
             )
-            self.assertTrue(
-                Path(r.stdout.strip()).is_relative_to(
-                    Path(tmp) / "profile/state/sigil-forge"
+            for line in r.stdout.split():
+                self.assertTrue(
+                    Path(line).is_relative_to(Path(tmp) / "profile/state/sigil-forge"),
+                    line,
                 )
-            )
 
     def test_documented_session_handoff_from_unrelated_cwd(self):
         for doc in ["SKILL.md", "README.md"]:
