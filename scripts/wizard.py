@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import default_out_dir, ensure_private_dir, write_private_text
+from paths import default_session_dir, ensure_private_dir, write_private_text
 from policy_lint import detect_authority_seal_request
 from safety import check_intent
 
@@ -854,7 +854,7 @@ def load_answers_file(path: Path | str) -> dict[str, Any]:
 
 def session_dir() -> Path:
     # Session files hold the operator's answers, including the plaintext intent.
-    return ensure_private_dir(default_out_dir().parent / "wizard-sessions")
+    return ensure_private_dir(default_session_dir())
 
 
 def _safe_session_id(session_id: str) -> str:
