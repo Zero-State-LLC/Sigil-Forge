@@ -60,7 +60,10 @@ bash install.sh --dry-run
 # Default → ${HERMES_HOME:-$HOME/.hermes}/skills/sigil-forge
 bash install.sh
 
-# Custom location
+# Standalone engine (no Hermes) → ${SIGIL_FORGE_HOME:-$HOME/.sigil-forge}
+bash install.sh --standalone
+
+# Custom location (wins over --standalone / --hermes; --hermes names the default)
 bash install.sh --target /path/to/skills/sigil-forge
 
 # Version

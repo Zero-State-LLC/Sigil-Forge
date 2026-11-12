@@ -4,16 +4,22 @@
 #   ./install.sh
 #   ./install.sh --dry-run
 #   ./install.sh --target DIR
+#   ./install.sh --standalone
+#   ./install.sh --hermes
 #   ./install.sh --version
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEFAULT_TARGET="${HERMES_HOME:-$HOME/.hermes}/skills/sigil-forge"
+HERMES_TARGET="${HERMES_HOME:-$HOME/.hermes}/skills/sigil-forge"
+STANDALONE_TARGET="${SIGIL_FORGE_HOME:-$HOME/.sigil-forge}"
+DEFAULT_TARGET="$HERMES_TARGET"
 VERSION="$(tr -d '[:space:]' < "${ROOT}/VERSION" 2>/dev/null || echo "0.0.0")"
 
 DRY_RUN=0
 ALLOW_OUTSIDE_HOME=0
 TARGET="$DEFAULT_TARGET"
+MODE=""          # "", "hermes" or "standalone"
+TARGET_GIVEN=0
 
 usage() {
   cat <<EOF
@@ -23,13 +29,19 @@ Usage: ./install.sh [options]
 
 Options:
   --dry-run               Show actions without writing
-  --target DIR            Install to DIR (default: ${DEFAULT_TARGET})
+  --target DIR            Install to DIR (wins over --standalone and --hermes)
+  --hermes                Install as a Hermes skill (the default): ${HERMES_TARGET}
+  --standalone            Install as a standalone engine: ${STANDALONE_TARGET}
+                          (\$SIGIL_FORGE_HOME, else \$HOME/.sigil-forge)
   --allow-outside-home    Permit --target outside \$HOME
   --version               Print version and exit
   -h, --help              Show this help
 
 Post-install:
   python3 "\$TARGET/scripts/sigil_forge.py" check
+  (standalone: set SIGIL_FORGE_HOME to the target first; Hermes: HERMES_SKILL_DIR)
+
+--standalone and --hermes are mutually exclusive. Default is --hermes.
 EOF
 }
 
@@ -54,16 +66,27 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN=1; shift ;;
     --allow-outside-home) ALLOW_OUTSIDE_HOME=1; shift ;;
     --version) echo "$VERSION"; exit 0 ;;
+    --standalone)
+      [[ "$MODE" != "hermes" ]] || die "--standalone and --hermes are mutually exclusive"
+      MODE="standalone"; shift ;;
+    --hermes)
+      [[ "$MODE" != "standalone" ]] || die "--standalone and --hermes are mutually exclusive"
+      MODE="hermes"; shift ;;
     --target)
       [[ $# -ge 2 ]] || die "--target requires a path"
       TARGET="$2"
+      TARGET_GIVEN=1
       shift 2
       ;;
-    --target=*) TARGET="${1#--target=}"; shift ;;
+    --target=*) TARGET="${1#--target=}"; TARGET_GIVEN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1" ;;
   esac
 done
+
+if [[ $TARGET_GIVEN -eq 0 && "$MODE" == "standalone" ]]; then
+  TARGET="$STANDALONE_TARGET"
+fi
 
 validate_target() {
   python3 - "$TARGET" "${ROOT}/scripts" <<'PY'
@@ -209,7 +232,11 @@ post_check() {
   local dest="$1"
   if [[ $DRY_RUN -eq 1 ]]; then
     printf '[dry-run] python3 %q/scripts/validate_hermes_skill.py\n' "$dest"
-    printf '[dry-run] HERMES_SKILL_DIR=%q python3 %q/scripts/sigil_forge.py check\n' "$dest" "$dest"
+    if [[ "$MODE" == "standalone" ]]; then
+      printf '[dry-run] SIGIL_FORGE_HOME=%q python3 %q/scripts/sigil_forge.py check\n' "$dest" "$dest"
+    else
+      printf '[dry-run] HERMES_SKILL_DIR=%q python3 %q/scripts/sigil_forge.py check\n' "$dest" "$dest"
+    fi
     return 0
   fi
   log "Post-install Hermes frontmatter check"
@@ -217,8 +244,13 @@ post_check() {
     || die "post-install validate_hermes_skill failed"
   log "Post-install engine check"
   # Resolve skill root from install path (not the clone cwd)
-  HERMES_SKILL_DIR="${dest}" python3 "${dest}/scripts/sigil_forge.py" check \
-    || die "post-install check failed: HERMES_SKILL_DIR=${dest} python3 ${dest}/scripts/sigil_forge.py check"
+  if [[ "$MODE" == "standalone" ]]; then
+    SIGIL_FORGE_HOME="${dest}" python3 "${dest}/scripts/sigil_forge.py" check \
+      || die "post-install check failed: SIGIL_FORGE_HOME=${dest} python3 ${dest}/scripts/sigil_forge.py check"
+  else
+    HERMES_SKILL_DIR="${dest}" python3 "${dest}/scripts/sigil_forge.py" check \
+      || die "post-install check failed: HERMES_SKILL_DIR=${dest} python3 ${dest}/scripts/sigil_forge.py check"
+  fi
   log "Post-install check OK"
 }
 
@@ -232,15 +264,28 @@ if [[ $DRY_RUN -eq 1 ]]; then
   exit 0
 fi
 
-python3 "${ROOT}/scripts/install_transaction.py" "$ROOT" "$TARGET" sigil-forge
+if [[ "$MODE" == "standalone" ]]; then
+  # Keep backups next to a standalone install; never create ~/.hermes for it.
+  python3 "${ROOT}/scripts/install_transaction.py" "$ROOT" "$TARGET" sigil-forge \
+    --backup-home "$(dirname "$TARGET")/.sigil-forge-backups"
+else
+  python3 "${ROOT}/scripts/install_transaction.py" "$ROOT" "$TARGET" sigil-forge
+fi
 
 echo ""
 log "Sigil-Forge v${VERSION} installed → ${TARGET}"
 echo ""
 echo "Next:"
-echo "  export HERMES_SKILL_DIR=\"${TARGET}\""
-echo "  python3 \"\$HERMES_SKILL_DIR/scripts/sigil_forge.py\" check"
-echo "  python3 \"\$HERMES_SKILL_DIR/scripts/sigil_forge.py\" construct \\"
-echo "    --intent \"I maintain calm focus\" --out out/sigil-forge"
-echo "  # Reload Hermes skills if the agent is already running"
+if [[ "$MODE" == "standalone" ]]; then
+  echo "  export SIGIL_FORGE_HOME=\"${TARGET}\""
+  echo "  python3 \"\$SIGIL_FORGE_HOME/scripts/sigil_forge.py\" check"
+  echo "  python3 \"\$SIGIL_FORGE_HOME/scripts/sigil_forge.py\" construct \\"
+  echo "    --intent \"I maintain calm focus\" --out out/sigil-forge"
+else
+  echo "  export HERMES_SKILL_DIR=\"${TARGET}\""
+  echo "  python3 \"\$HERMES_SKILL_DIR/scripts/sigil_forge.py\" check"
+  echo "  python3 \"\$HERMES_SKILL_DIR/scripts/sigil_forge.py\" construct \\"
+  echo "    --intent \"I maintain calm focus\" --out out/sigil-forge"
+  echo "  # Reload Hermes skills if the agent is already running"
+fi
 echo ""
