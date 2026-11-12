@@ -367,6 +367,12 @@ python3 scripts/sigil_forge.py eval
 
 Env: `HERMES_SKILL_DIR`, `SIGIL_FORGE_PASSPHRASE`, optional `SIGIL_FORGE_BG_COMMAND`.
 
+Path resolution (works under any agent, or as a plain CLI):
+
+- Install root: first set of `SIGIL_FORGE_HOME`, `SIGIL_FORGE_ROOT`, `SIGIL_FORGE_DIR`, `SIGIL_FORGE_SKILL_DIR`, else `HERMES_SKILL_DIR`, else this checkout.
+- State (products, wizard sessions): `SIGIL_FORGE_STATE_DIR` if set; else `<root>/state` when one of the four `SIGIL_FORGE_*` root variables is set; else `$HERMES_HOME/state/sigil-forge` (`HERMES_HOME` defaults to `~/.hermes`).
+- With none of the new variables set, behaviour is unchanged. The root variable must point at a complete install (it is also where `schemas/` etc. are read from).
+
 ---
 
 ## Safety & framing

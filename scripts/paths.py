@@ -6,19 +6,57 @@ import os
 import tempfile
 
 
+_ROOT_ENV = ("SIGIL_FORGE_HOME", "SIGIL_FORGE_ROOT", "SIGIL_FORGE_DIR", "SIGIL_FORGE_SKILL_DIR")
+
+
+def _first_set(names: tuple[str, ...]) -> str | None:
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            return value
+    return None
+
+
+def configured_root() -> Path | None:
+    """Install root named by the environment, or None to use this checkout.
+
+    First set of ``_ROOT_ENV`` wins, then the Hermes ``HERMES_SKILL_DIR``.
+    """
+    value = _first_set(_ROOT_ENV) or os.environ.get("HERMES_SKILL_DIR")
+    if value:
+        return Path(value).expanduser().resolve()
+    return None
+
+
 def skill_root() -> Path:
-    env = os.environ.get("HERMES_SKILL_DIR")
-    if env:
-        return Path(env).resolve()
-    return Path(__file__).resolve().parent.parent
+    return configured_root() or Path(__file__).resolve().parent.parent
+
+
+def default_state_root() -> Path:
+    """Where private state (products, wizard sessions) lives.
+
+    Order: ``SIGIL_FORGE_STATE_DIR``; then ``<root>/state`` when one of the
+    ``SIGIL_FORGE_*`` root variables is set (``HERMES_SKILL_DIR`` alone does
+    not count); otherwise the long-standing default
+    ``(HERMES_HOME or ~/.hermes)/state/sigil-forge``. With none of the new
+    variables set, behaviour is identical to earlier releases.
+    """
+    state = os.environ.get("SIGIL_FORGE_STATE_DIR")
+    if state:
+        return Path(state).expanduser().resolve()
+    root = _first_set(_ROOT_ENV)
+    if root:
+        return Path(root).expanduser().resolve() / "state"
+    home = Path(os.environ.get("HERMES_HOME") or str(Path.home() / ".hermes"))
+    return home.expanduser().resolve() / "state" / "sigil-forge"
+
+
+def default_session_dir() -> Path:
+    return default_state_root() / "wizard-sessions"
 
 
 def default_out_dir() -> Path:
-    state = os.environ.get("SIGIL_FORGE_STATE_DIR")
-    if state:
-        return Path(state).expanduser().resolve() / "products"
-    home = Path(os.environ.get("HERMES_HOME") or str(Path.home() / ".hermes"))
-    return home.expanduser().resolve() / "state" / "sigil-forge" / "products"
+    return default_state_root() / "products"
 
 
 def make_run_id(digest_hex: str, when: datetime | None = None) -> str:
