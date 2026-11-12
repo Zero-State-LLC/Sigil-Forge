@@ -48,3 +48,13 @@ jobs:
         run: python3 -m pytest -q
       - name: Install preview
         run: bash install.sh --dry-run
+      - name: Package install check
+        # Install the wheel into a clean venv and run it from outside the
+        # checkout, so an import that only works from the source tree fails here.
+        run: |
+          python -m venv "$RUNNER_TEMP/pkg-venv"
+          "$RUNNER_TEMP/pkg-venv/bin/python" -m pip install --quiet .
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/pkg-venv/bin/python" -c "import sigil_forge.cli, sigil_forge.construct"
+          "$RUNNER_TEMP/pkg-venv/bin/sigil-forge" --help > /dev/null
+          SIGIL_FORGE_HOME="$GITHUB_WORKSPACE" "$RUNNER_TEMP/pkg-venv/bin/sigil-forge" check
