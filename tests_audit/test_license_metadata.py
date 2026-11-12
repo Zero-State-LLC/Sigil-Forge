@@ -1,4 +1,4 @@
-"""Current distribution metadata must match the unchanged root license."""
+"""Current distribution metadata must match the root MIT license."""
 
 import unittest
 from pathlib import Path
@@ -8,7 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class LicenseMetadata(unittest.TestCase):
     def test_current_distribution_metadata(self):
-        self.assertIn("Zero State Proprietary License", (ROOT / "LICENSE").read_text())
+        license_text = (ROOT / "LICENSE").read_text()
+        self.assertTrue(license_text.startswith("MIT License"))
+        self.assertIn("Zero State LLC", license_text)
         files = [ROOT / "SKILL.md", ROOT / "README.md"]
         files += list((ROOT / "skills").glob("*/SKILL.md"))
         files += list((ROOT / "skills").glob("*/README.md"))
@@ -24,11 +26,10 @@ class LicenseMetadata(unittest.TestCase):
         ]
         for p in files:
             with self.subTest(path=str(p)):
-                self.assertNotRegex(p.read_text(), r"\bMIT\b")
-        self.assertIn(
-            "license: LicenseRef-Zero-State-Proprietary-1.0",
-            (ROOT / "SKILL.md").read_text(),
-        )
+                self.assertNotRegex(
+                    p.read_text(), r"Proprietary|ZSPL|LicenseRef-Zero-State"
+                )
+        self.assertIn("license: MIT", (ROOT / "SKILL.md").read_text())
 
 
 if __name__ == "__main__":
