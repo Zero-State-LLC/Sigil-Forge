@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import skill_root
+from paths import default_state_root, ensure_private_dir, skill_root
 
 RECEIPT_SCHEMA_VERSION = "1.0"
 LEDGER_SCHEMA_VERSION = "1.0"
@@ -30,25 +30,54 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _default_state_file(name: str) -> Path:
+    """Default location of a ledger/receipt file.
+
+    New default: ``<state root>/ledger/<name>``. Backward compatibility, with no
+    data migration: if that file does not exist but the legacy file
+    ``<install root>/out/sigil-forge/<name>`` does, the legacy path is returned
+    so existing ledgers keep being read and appended to.
+    """
+    new = default_state_root() / "ledger" / name
+    if not new.exists():
+        legacy = skill_root() / "out" / "sigil-forge" / name
+        if legacy.exists():
+            return legacy
+    return new
+
+
+def _make_parent(path: Path) -> None:
+    """Create ``path``'s parent: 0700 for new dirs under the state root, else plain."""
+    parent = path.parent
+    try:
+        under_state = parent.resolve().is_relative_to(default_state_root())
+    except (OSError, ValueError):
+        under_state = False
+    if under_state:
+        ensure_private_dir(parent)
+    else:
+        parent.mkdir(parents=True, exist_ok=True)
+
+
 def default_ledger_path() -> Path:
     env = os.environ.get("SIGIL_FORGE_LEDGER")
     if env:
         return Path(env).expanduser()
-    return skill_root() / "out" / "sigil-forge" / DEFAULT_LEDGER_NAME
+    return _default_state_file(DEFAULT_LEDGER_NAME)
 
 
 def default_receipts_path() -> Path:
     env = os.environ.get("SIGIL_FORGE_RECEIPTS")
     if env:
         return Path(env).expanduser()
-    return skill_root() / "out" / "sigil-forge" / DEFAULT_RECEIPTS_NAME
+    return _default_state_file(DEFAULT_RECEIPTS_NAME)
 
 
 def default_canon_proposals_path() -> Path:
     env = os.environ.get("SIGIL_FORGE_CANON_PROPOSALS")
     if env:
         return Path(env).expanduser()
-    return skill_root() / "out" / "sigil-forge" / DEFAULT_CANON_PROPOSALS_NAME
+    return _default_state_file(DEFAULT_CANON_PROPOSALS_NAME)
 
 
 def build_run_receipt(
@@ -98,14 +127,14 @@ def build_run_receipt(
 
 
 def write_receipt_file(receipt: dict[str, Any], path: Path) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _make_parent(path)
     path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 
 
 def append_receipt_log(receipt: dict[str, Any], log_path: Path | None = None) -> Path:
     path = log_path or default_receipts_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _make_parent(path)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(receipt, sort_keys=True) + "\n")
     return path
@@ -143,7 +172,7 @@ def append_ledger(
     if entry.get("canon_status") != "PROPOSED":
         raise ValueError("learning ledger entries must be canon_status=PROPOSED")
     path = ledger_path or default_ledger_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _make_parent(path)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry, sort_keys=True) + "\n")
     return path
@@ -246,7 +275,7 @@ def promote_to_canon_proposal(
         "entry": entry,
         "note": "Operator-local proposal only; does not mutate skill references/",
     }
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    _make_parent(out_path)
     with out_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(proposal, sort_keys=True) + "\n")
     return proposal
