@@ -70,7 +70,13 @@ def untrusted_symlink(target: Path) -> Path | None:
     return None
 
 
-def install(source: Path, target: Path, kind: str, skip_checks: bool = False) -> None:
+def install(
+    source: Path,
+    target: Path,
+    kind: str,
+    skip_checks: bool = False,
+    backup_home: Path | None = None,
+) -> None:
     # Check the lexical final component before resolve follows a dangling link.
     if untrusted_symlink(target) is not None:
         raise ValueError("refusing symlink target")
@@ -84,7 +90,7 @@ def install(source: Path, target: Path, kind: str, skip_checks: bool = False) ->
     if target.exists() and not target.is_dir():
         raise ValueError("target must be a directory")
     key = hashlib.sha256(str(target).encode()).hexdigest()[:20]
-    backups = home / "backups" / kind / key
+    backups = (backup_home.resolve() if backup_home else home) / "backups" / kind / key
     if target == backups or target in backups.parents or backups in target.parents:
         raise ValueError("backup and target must not overlap")
     # Reject payload links rather than shipping aliases into private source state.
@@ -266,13 +272,18 @@ def install(source: Path, target: Path, kind: str, skip_checks: bool = False) ->
         lock.rmdir()
 
 
-def rollback(target: Path, kind: str, skip_checks: bool = False) -> None:
+def rollback(
+    target: Path,
+    kind: str,
+    skip_checks: bool = False,
+    backup_home: Path | None = None,
+) -> None:
     if untrusted_symlink(target) is not None:
         raise ValueError("refusing symlink target")
     target = target.resolve()
     home = Path(os.environ.get("HERMES_HOME") or str(Path.home() / ".hermes")).resolve()
     key = hashlib.sha256(str(target).encode()).hexdigest()[:20]
-    backups = home / "backups" / kind / key
+    backups = (backup_home.resolve() if backup_home else home) / "backups" / kind / key
     candidates = sorted(
         backups.glob("*"), key=lambda p: p.lstat().st_mtime_ns, reverse=True
     )
@@ -293,7 +304,7 @@ def rollback(target: Path, kind: str, skip_checks: bool = False) -> None:
             f"no target-bound backup for {target}; legacy backups require manual review"
         )
     # Reuse staged runtime checks, backup, activated read-back and failed-rename recovery.
-    install(backup, target, kind, skip_checks)
+    install(backup, target, kind, skip_checks, backup_home)
 
 
 def main() -> int:
@@ -303,14 +314,22 @@ def main() -> int:
     parser.add_argument("kind", choices=CHECKS)
     parser.add_argument("--skip-checks", action="store_true")
     parser.add_argument("--rollback", action="store_true")
+    parser.add_argument(
+        "--backup-home",
+        type=Path,
+        default=None,
+        help="keep backups under DIR/backups/... instead of HERMES_HOME (standalone installs)",
+    )
     args = parser.parse_args()
     try:
         if not args.target.strip():
             raise ValueError("empty target")
         if args.rollback:
-            rollback(Path(args.target), args.kind, args.skip_checks)
+            rollback(Path(args.target), args.kind, args.skip_checks, args.backup_home)
         else:
-            install(args.source, Path(args.target), args.kind, args.skip_checks)
+            install(
+                args.source, Path(args.target), args.kind, args.skip_checks, args.backup_home
+            )
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
         print(f"Installation failed: {exc}", file=sys.stderr)
         return 1

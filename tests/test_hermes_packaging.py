@@ -64,6 +64,7 @@ def test_doctor_packaging_and_providers():
     assert payload["ok"] is True
     assert payload.get("packaging") == "hermes-skill"
     assert payload.get("hermes_ok") is True
+    assert payload.get("agent_contract_ok") == payload.get("hermes_ok")
     assert payload.get("description_ok") is True
     assert payload.get("description_chars", 99) <= 60
     names = {p["name"] for p in payload.get("proof_providers") or []}
@@ -122,6 +123,7 @@ def test_install_to_temp_and_check(tmp_path: Path):
     assert payload["ok"] is True
     assert payload["poi_ok"] is True
     assert payload["hermes_ok"] is True
+    assert payload["agent_contract_ok"] == payload["hermes_ok"]
     assert Path(payload["root"]).resolve() == dest.resolve()
 
 

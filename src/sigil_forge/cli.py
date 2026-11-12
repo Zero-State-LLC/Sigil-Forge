@@ -259,7 +259,8 @@ def cmd_check(_: argparse.Namespace) -> int:
                 "schema_errors": schema_errors,
                 "modules_ok": modules_ok,
                 "module_errors": module_errors,
-                "hermes_ok": hermes_ok,
+                "hermes_ok": hermes_ok,  # legacy name of agent_contract_ok
+                "agent_contract_ok": hermes_ok,
                 "hermes_errors": hermes_errors,
                 "description_chars": description_chars,
                 "description_ok": bool(description_chars) and description_chars <= 60,
@@ -776,7 +777,8 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         "layout_raster": True,
         "missing": missing,
         "module_errors": module_errors,
-        "hermes_ok": hermes_ok,
+        "hermes_ok": hermes_ok,  # legacy name of agent_contract_ok
+        "agent_contract_ok": hermes_ok,
         "hermes_errors": hermes_errors,
         "description_chars": description_chars,
         "description_ok": bool(description_chars) and description_chars <= 60,

@@ -45,6 +45,8 @@ def test_check_requires_schemas_and_modules():
     assert payload.get("module_errors") == []
     assert payload.get("construct_error") in (None, "")
     assert payload.get("hermes_ok") is True
+    assert "agent_contract_ok" in payload
+    assert payload["agent_contract_ok"] == payload["hermes_ok"]
     assert payload.get("poi_ok") is True
     assert payload.get("description_ok") is True
     assert payload.get("description_chars", 99) <= 60
