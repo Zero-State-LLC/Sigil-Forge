@@ -315,3 +315,49 @@ def test_install_source_path_is_not_evaluated_as_code(tmp_path: Path):
     assert not marker.exists(), "checkout path was executed as Python"
     assert r.returncode == 0, r.stderr + r.stdout
     assert "Source validation OK" in r.stdout
+
+
+def _skill_field(key: str) -> str:
+    import re
+
+    m = re.search(rf"^{key}:[ \t]*(.*?)[ \t]*$", _frontmatter_raw(), re.MULTILINE)
+    assert m, f"SKILL.md frontmatter has no {key}:"
+    return m.group(1).strip().strip("\"'")
+
+
+def _pyproject_text() -> str:
+    return (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+
+def _pyproject_value(key: str) -> str:
+    """Return the string value of a top-level `key = "..."` line (stdlib only).
+
+    tomllib is 3.11+, and the suite must also pass on Python 3.10.
+    """
+    import re
+
+    m = re.search(rf'^{key}\s*=\s*"([^"]*)"\s*$', _pyproject_text(), re.MULTILINE)
+    assert m, f"pyproject.toml has no string {key} = ..."
+    return m.group(1)
+
+
+def test_skill_version_matches_version_file():
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    assert version
+    assert _skill_field("version") == version
+
+
+def test_pyproject_declares_metadata_policy():
+    text = _pyproject_text()
+    assert _pyproject_value("license") == "MIT"
+    assert _pyproject_value("requires-python") == ">=3.10"
+    assert "dependencies = []" in text
+    assert 'version = { file = "VERSION" }' in text
+    # Version must come from VERSION, never a literal under [project].
+    project = text.split("[project]", 1)[1].split("\n[", 1)[0]
+    assert "version =" not in project.replace("dynamic", "")
+    assert '"version"' in project  # listed in dynamic = ["version"]
+
+
+def test_pyproject_description_matches_skill():
+    assert _pyproject_value("description") == _skill_field("description")

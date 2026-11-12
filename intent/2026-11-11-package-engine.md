@@ -1,6 +1,6 @@
 # Intent: package the engine as `sigil_forge`
 
-Status: DRAFT, awaiting owner acceptance. No implementation has started.
+Status: ACCEPTED by the owner on 2026-11-12 ("do as recommended"). Step 1 (metadata) is in progress.
 
 ## Problem
 
@@ -81,9 +81,9 @@ Owner decides. Each was researched on 2026-11-11; the evidence is in
 3. Distribution. Install from git only, or publish to a package index.
    [Git tag only, setuptools backend. No index is needed for Hermes or
    Abraxas.]
-4. Licence first? `pyproject.toml` needs a licence value. `LICENSE` is
-   ZSPL-1.0 and draft PR #5 proposes MIT. [Decide the licence first; see
-   `docs/LICENSE-OPTIONS-2026-11.md`. Until then leave the field out.]
+4. Licence first? `pyproject.toml` needs a licence value. The licence was
+   decided on 2026-11-12: MIT (PR #17), so `pyproject.toml` declares
+   `license = "MIT"`. [See `docs/LICENSE-OPTIONS-2026-11.md`.]
 5. How long bare-name imports keep working, such as `import paths`.
    [Remove them in the move. Keep `scripts/sigil_forge.py` as a shim
    indefinitely: the repo references that path about 180 times and Hermes
@@ -107,7 +107,7 @@ Owner decides. Each was researched on 2026-11-11; the evidence is in
 | `skill_root()` reads `HERMES_SKILL_DIR` and otherwise uses the parent of `scripts/` | `OBSERVED` | `sed -n 8,12p scripts/paths.py` |
 | No `pyproject.toml`, `setup.py` or `setup.cfg` exists | `OBSERVED` | `ls` returned "No such file" for each |
 | `LICENSE` and `LICENSE_POLICY.md` exist | `OBSERVED` | `ls LICENSE*` |
-| `LICENSE` is ZSPL-1.0 and draft PR #5 proposes MIT | `OBSERVED` | `head LICENSE`; `gh pr list --state all` shows #5 as a draft titled "relicense original Zero State materials to MIT" |
+| The licence was decided on 2026-11-12 as MIT (PR #17), so `pyproject.toml` declares `license = "MIT"` | `OBSERVED` | `head -3 LICENSE`; `git log --oneline -1 origin/main` shows ba248c1 "license: relicense original Zero State materials to MIT (#17)" |
 | CI runs two legs: Python 3.10 with pytest only, and Python 3.13 with the optional extras | `OBSERVED` | `.github/workflows/ci.yml` matrix; both legs passed on #14 |
 | Abraxas currently fails when it imports a bare name from this repo | `NOT_COMPUTABLE` | Abraxas was not inspected here. The collision claim comes from review section 5 |
 
