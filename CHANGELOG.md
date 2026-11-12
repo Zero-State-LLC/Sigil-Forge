@@ -20,8 +20,8 @@ version. The last release from this line was 0.13.1.
 - `install.sh --standalone` (installs to `$SIGIL_FORGE_HOME` or `~/.sigil-forge`) and
   `install.sh --hermes` (the existing default, now nameable). `--target` still wins.
 - The `SIGIL_FORGE_HOME` family of variables (`SIGIL_FORGE_HOME`, `SIGIL_FORGE_ROOT`,
-  `SIGIL_FORGE_DIR`, `SIGIL_FORGE_SKILL_DIR`, `SIGIL_FORGE_STATE_DIR`) so the engine can be
-  located without Hermes-specific variables.
+  `SIGIL_FORGE_DIR`, `SIGIL_FORGE_SKILL_DIR`) so the engine can be located without
+  Hermes-specific variables. `SIGIL_FORGE_STATE_DIR` already existed and still wins for state.
 - `agent_contract_ok` in `check` and `doctor` output, beside the legacy `hermes_ok`. Both carry
   the same value.
 - `sigil_forge` importable package and a `sigil-forge` console script.
