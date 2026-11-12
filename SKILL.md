@@ -1,7 +1,7 @@
 ---
 name: sigil-forge
 description: Forge offline intent glyphs into encrypted wallpapers.
-version: 0.13.1
+version: 0.15.0
 author: Daniel Meyer (scrimshawlife-ctrl), Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
