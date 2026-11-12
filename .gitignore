@@ -5,6 +5,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.egg-info/
+build/
+dist/
 .superpowers/
 
 # Local secrets and key material: never commit
