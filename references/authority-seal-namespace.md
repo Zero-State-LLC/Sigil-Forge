@@ -43,7 +43,7 @@ See also: `distinction-enochian.md` (intent vs Enochian **and** Goetic tables).
 
 ## This skill refuses emission via construct / wizard
 
-Hard gate (shared classifier in `scripts/policy_lint.py`):
+Hard gate (shared classifier in `src/sigil_forge/policy_lint.py`):
 
 - `detect_authority_seal_request(text)` → `(hit, family_hint)`
 - `ontology.assert_not_entity_seal_request(intent)` raises
@@ -130,7 +130,7 @@ redirect; do not soft-build a “safe fake.”
 | Efficacy language | `lint_efficacy_text` / `assert_no_efficacy` on framing & polish |
 | Agent / CI lint | `python3 scripts/sigil_forge.py policy check` |
 | Learning | Ledger stays `PROPOSED`; `ledger promote --i-confirm PROMOTE` → local proposals only |
-| Safety harm gate | `scripts/safety.py` (violence, self-harm, non-consensual control, exploitation) |
+| Safety harm gate | `src/sigil_forge/safety.py` (violence, self-harm, non-consensual control, exploitation) |
 
 Details: `safety-and-framing.md`, `receipts-and-ledger.md`, `expansion-spine.md`.
 

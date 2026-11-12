@@ -14,7 +14,7 @@ Version: **v0.4** — pluggable encodings with provenance
 | `mercury` | Mercury | 8×8 | 260 |
 | `luna` | Luna | 9×9 | 369 |
 
-Tables are hardcoded Agrippa/Western placements in `scripts/kamea.py`.
+Tables are hardcoded Agrippa/Western placements in `src/sigil_forge/kamea.py`.
 
 ## Encodings (required provenance)
 

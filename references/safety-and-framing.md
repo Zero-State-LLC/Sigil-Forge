@@ -29,7 +29,7 @@ owned separately)
 
 ## Refusal categories (engine + agent)
 
-`scripts/safety.py` uses multi-word heuristics (prefer false negatives over
+`src/sigil_forge/safety.py` uses multi-word heuristics (prefer false negatives over
 blocking mundane phrases like “kill process”). The **agent** still applies
 judgment for edge cases the keyword gate misses.
 
@@ -56,7 +56,7 @@ artifacts**.
 ## Efficacy language policy
 
 Efficacy claims are forbidden in framing, polish prompts, agent narrative, and
-operator-facing copy. Shared helpers live in `scripts/policy_lint.py`:
+operator-facing copy. Shared helpers live in `src/sigil_forge/policy_lint.py`:
 
 - `lint_efficacy_text(text) -> list[str]` — phrase hits
 - `assert_no_efficacy(text, field=…)` — raises `efficacy_policy_violation`
@@ -116,7 +116,7 @@ Stdout JSON:
 | Multi-channel stego for integrity/privacy | Covert harm, surveillance abuse |
 
 Packet always includes mode-appropriate `framing_notes` without efficacy claims
-(`scripts/packet.py`).
+(`src/sigil_forge/packet.py`).
 
 ## Privacy
 

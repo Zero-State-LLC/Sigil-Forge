@@ -9,7 +9,7 @@ forge packet as:
 { "id": "<channel_id>", "status": "applied" | "skipped", "detail": "..." }
 ```
 
-Order in `scripts/construct.py` (`_CHANNEL_ORDER`):
+Order in `src/sigil_forge/construct.py` (`_CHANNEL_ORDER`):
 
 1. `spare_monogram`  
 2. `kamea_path`  
@@ -63,7 +63,7 @@ default. Stego exists for operator sovereignty and multi-encoding — not covert
 | `png_lsb` | PNG | Digest-only LSB via layout_raster (+bind/rose) | Skipped: raster/embed failures only |
 | `gen_seed` | (AI polish) | Seed derived from digest | `skipped(no_ai_polish)` until `--polish` |
 
-Implementation: `scripts/stego_svg.py`, `scripts/stego_png.py`, `scripts/layout_raster.py`.
+Implementation: `src/sigil_forge/stego_svg.py`, `src/sigil_forge/stego_png.py`, `src/sigil_forge/layout_raster.py`.
 
 ## Capacity and failure modes
 
