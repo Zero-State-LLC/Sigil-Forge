@@ -349,6 +349,7 @@ Channels: [references/channels-and-steganography.md](references/channels-and-ste
 construct     Forge multi-channel sigil + packet (+ optional --proof)
 verify        Recover intent digest (+ sigil_root when SF11)
 inspect       Public carrier inspection (digest/root; no plaintext)
+png-stats     LSB-plane statistics of a PNG (descriptive; not a detector)
 verify-proof  Proof-of-intent check for a run (optional passphrase)
 wizard        Guided interview (--next / --apply / sessions / --path quick|full)
 wallpaper     Immutable glyph + atmosphere composite
@@ -375,6 +376,20 @@ Path resolution (works under any agent, or as a plain CLI):
 - Install root: first set of `SIGIL_FORGE_HOME`, `SIGIL_FORGE_ROOT`, `SIGIL_FORGE_DIR`, `SIGIL_FORGE_SKILL_DIR`, else `HERMES_SKILL_DIR`, else this checkout.
 - State (products, wizard sessions): `SIGIL_FORGE_STATE_DIR` if set; else `<root>/state` when one of the four `SIGIL_FORGE_*` root variables is set; else `$HERMES_HOME/state/sigil-forge` (`HERMES_HOME` defaults to `~/.hermes`).
 - With none of the new variables set, behaviour is unchanged. The root variable must point at a complete install (it is also where `schemas/` etc. are read from).
+
+### PNG statistics
+
+```bash
+python3 scripts/sigil_forge.py png-stats PATH [--out FILE]
+```
+
+Prints JSON for an 8-bit RGB PNG: the count and ratio of ones in the
+least-significant-bit plane (overall and per channel), a pairs-of-values
+chi-square with its degrees of freedom, and whether the first bytes carry an
+`SF1`, `SF11` or `SF12` header. These are descriptive statistics, not a
+detector verdict: the command does not show that data is hidden or absent, and
+a carrier with natural noise and one with an embedded payload can score alike.
+It writes a file only when you pass `--out`.
 
 ---
 
