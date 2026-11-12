@@ -237,3 +237,9 @@ def test_cli_default_paths_are_private(tmp_path):
     assert index.parent == sb.resolve() or index.parent == sb
     assert stat.S_IMODE(os.stat(sb).st_mode) == 0o700
     assert stat.S_IMODE(os.stat(index).st_mode) == 0o600
+
+
+def test_help_lists_storyboard():
+    r = _cli(["help"])
+    assert r.returncode == 0
+    assert "storyboard" in r.stdout
