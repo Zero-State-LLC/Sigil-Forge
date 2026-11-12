@@ -29,6 +29,9 @@ version. The last release from this line was 0.13.1.
 - CI that runs the tests, ruff, the Hermes frontmatter validator and `install.sh --dry-run`, and
   that installs the built package into a clean venv and runs it.
 - Dependabot for GitHub Actions and pip.
+- Optional `cryptography` backend for AES-GCM. When the package is installed it is used instead
+  of the built-in pure-Python implementation; sealed files open with either. `doctor` reports
+  which one is active as `aes_backend`, and `SIGIL_FORGE_AES_BACKEND` can force one.
 
 ### Changed
 

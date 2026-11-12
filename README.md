@@ -73,7 +73,7 @@ bash install.sh --version
 Staged validation runs `validate_hermes_skill` + `check` before activation; contract/version are read back after activation.
 Install is a **lean skill tree**: excludes `.git`, `out/`, `.venv`, caches, `.worktrees`, and `docs/superpowers` (implementation plans are clone-only).
 
-**Requirements:** Python 3.10+ (stdlib). No pip packages for the core path. Optional: `jsonschema` for stricter packet validation; optional `argon2-cffi` for Argon2id sealing.
+**Requirements:** Python 3.10+ (stdlib). No pip packages for the core path. Optional: `jsonschema` for stricter packet validation; optional `argon2-cffi` for Argon2id sealing; optional `cryptography` makes AES-GCM use a vetted library instead of the built-in pure-Python implementation (sealed files are interchangeable; `doctor` shows `aes_backend`).
 
 From a clone without installing:
 
