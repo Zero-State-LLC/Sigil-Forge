@@ -69,6 +69,14 @@ python3 "$HERMES_SKILL_DIR/scripts/sigil_forge.py" doctor
 # Reload Hermes skills if the agent is already running
 ```
 
+**Install standalone** (no Hermes; `~/.sigil-forge`, or `$SIGIL_FORGE_HOME`):
+
+```bash
+bash install.sh --standalone
+export SIGIL_FORGE_HOME="$HOME/.sigil-forge"
+python3 "$SIGIL_FORGE_HOME/scripts/sigil_forge.py" check
+```
+
 Wallpaper outputs live under `<run-id>/wallpaper/` and `<run-id>/receipts/`.  
 Canonical `glyph.svg` is never rewritten by wallpaper generation.  
 Every construct also emits `intent_commitment` + `sigil_root` (capsule only with passphrase + proof/seal).
