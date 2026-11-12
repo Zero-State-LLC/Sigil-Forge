@@ -1,7 +1,7 @@
 ---
 name: sigil-forge
 description: Forge offline intent glyphs into encrypted wallpapers.
-version: 0.13.1
+version: 0.15.0
 author: Daniel Meyer (scrimshawlife-ctrl), Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -142,7 +142,7 @@ Each step ends with a checkable completion criterion.
    skip to construct.
    **Done when:** `next.done` true or expert construct args complete; safety ok.
 2. **Safety / align** — Refuse violence, self-harm, non-consensual control,
-   exploitation (`scripts/safety.py` + agent judgment). Refuse authority-seal
+   exploitation (`src/sigil_forge/safety.py` + agent judgment). Refuse authority-seal
    requests (engine raises `AUTHORITY_SEAL_EXCLUDED` / wizard `refused: true`).
    Empty noise → rewrite. Optional preflight:
    `policy check --text "…"`.

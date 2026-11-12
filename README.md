@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>v0.13.1</strong> · Hermes skill · offline-first · wallpaper product · MIT
+  <strong>v0.15.0</strong> · Hermes skill · offline-first · wallpaper product · MIT
 </p>
 
 <p align="center">
@@ -467,6 +467,7 @@ Humans and coding agents follow [`AGENTS.md`](AGENTS.md). [`CLAUDE.md`](CLAUDE.m
 | [CLAUDE.md](CLAUDE.md) | Thin adapter → `AGENTS.md` |
 | [intent/](intent/README.md) | Stage-0 proto-spec for non-trivial skill work |
 | [QUICKSTART.md](QUICKSTART.md) | Short command sequence |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes, newest first |
 | [SKILL.md](SKILL.md) | Hermes behavior contract |
 | [references/wizard.md](references/wizard.md) | Step runner, paths, sessions, PoI steps |
 | [references/proof-of-intent.md](references/proof-of-intent.md) | Commitments, capsule, proofs (load on demand) |
