@@ -128,9 +128,9 @@ def test_ai_generated_host_command(tmp_path: Path):
         f"""#!/usr/bin/env python3
 import sys
 from pathlib import Path
-sys.path.insert(0, {str(ROOT / "scripts")!r})
-from stego_png import write_rgb_png
-from wallpaper.composite import procedural_background
+sys.path.insert(0, {str(ROOT / "src")!r})
+from sigil_forge.stego_png import write_rgb_png
+from sigil_forge.wallpaper.composite import procedural_background
 out = Path(sys.argv[1])
 w, h = int(sys.argv[2]), int(sys.argv[3])
 seed = int(sys.argv[4])

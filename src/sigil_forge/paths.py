@@ -54,7 +54,8 @@ def skill_root() -> Path:
     2. ``HERMES_SKILL_DIR`` if set: authoritative, no marker check (tests and
        the installer point it at partial trees on purpose).
     3. Walk up from this file to the first directory that is an install root.
-    4. Fallback: the parent of ``scripts/`` (the historical behaviour).
+    4. Fallback: the directory above ``src/`` (``src/sigil_forge/paths.py``
+       sits two levels below it).
     """
     value = _first_set(_ROOT_ENV)
     if value:
@@ -65,7 +66,7 @@ def skill_root() -> Path:
     if hermes:
         return Path(hermes).expanduser().resolve()
     here = Path(__file__).resolve()
-    return _find_install_root(here.parent) or here.parent.parent
+    return _find_install_root(here.parent) or here.parents[2]
 
 
 def default_state_root() -> Path:

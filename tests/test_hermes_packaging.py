@@ -102,8 +102,8 @@ def test_install_to_temp_and_check(tmp_path: Path):
     # HOME is tmp so default path is under tmp; we use explicit --target
     assert r.returncode == 0, r.stderr + r.stdout
     assert (dest / "SKILL.md").is_file()
-    assert (dest / "scripts" / "forge_core.py").is_file()
-    assert (dest / "scripts" / "proofs" / "registry.py").is_file()
+    assert (dest / "src" / "sigil_forge" / "forge_core.py").is_file()
+    assert (dest / "src" / "sigil_forge" / "proofs" / "registry.py").is_file()
     assert (dest / "references" / "proof-of-intent.md").is_file()
     # Lean install: implementation plans not required at runtime
     assert not (dest / "docs" / "superpowers").exists()

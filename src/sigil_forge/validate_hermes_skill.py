@@ -19,12 +19,16 @@ import json
 import re
 from pathlib import Path
 
+from sigil_forge.paths import _find_install_root
+
 try:
     import yaml
 except ImportError:  # stdlib-only fallback: _parse_minimal_yaml
     yaml = None  # type: ignore
 
-ROOT = Path(__file__).resolve().parent.parent
+# Install root by the same SKILL.md + VERSION marker walk as paths.skill_root()
+# (no env lookup, as before); src/sigil_forge/ sits two levels below the root.
+ROOT = _find_install_root(Path(__file__).resolve().parent) or Path(__file__).resolve().parents[2]
 SKILL = ROOT / "SKILL.md"
 MAX_DESCRIPTION = 60
 MAX_NAME = 64

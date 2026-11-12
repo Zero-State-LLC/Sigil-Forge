@@ -5,7 +5,7 @@
 Private inputs: padded intent bytes + 32-byte nonce  
 Public input: `SHA-256(nonce || intent_bytes[256])`
 
-Matches `scripts/proofs/zk_commit.py` (`sha256-nonce-pad256-v1`).
+Matches `src/sigil_forge/proofs/zk_commit.py` (`sha256-nonce-pad256-v1`).
 
 ## Status: experimental
 
@@ -28,7 +28,7 @@ result as provenance only until the provider is ported.
 ```bash
 cd zk/noir/intent_commitment
 nargo compile
-# Prover.toml is written by scripts/proofs/noir_provider.py
+# Prover.toml is written by src/sigil_forge/proofs/noir_provider.py
 nargo prove
 nargo verify
 ```
