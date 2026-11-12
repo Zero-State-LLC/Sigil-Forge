@@ -343,10 +343,27 @@ Channels: [references/channels-and-steganography.md](references/channels-and-ste
 
 ---
 
+## Storyboard
+
+One forge run per intent (1 to 12 frames), plus a public index tying them together:
+
+```bash
+python3 scripts/sigil_forge.py storyboard \
+  --intent "I maintain calm focus" --intent "I rest and recover"
+# or: --intents-file intents.txt   (one per line; blank and # lines skipped; max 64 KiB)
+```
+
+Every intent passes the same safety and authority-seal checks as `construct` before anything
+is forged; one refusal fails the whole board and writes nothing. Each frame is an ordinary run
+dir. The index `storyboards/storyboard-<board_id>.json` holds digests and roots only (no intent
+text). `board_id` hashes the ordered digests, so order matters. File frames come before
+`--intent` frames. Options: `--out`, `--passphrase` (prefer env), `--seal-packet`.
+
 ## CLI overview
 
 ```text
 construct     Forge multi-channel sigil + packet (+ optional --proof)
+storyboard    One forge run per intent (1-12) + digest-only index
 verify        Recover intent digest (+ sigil_root when SF11)
 inspect       Public carrier inspection (digest/root; no plaintext)
 png-stats     LSB-plane statistics of a PNG (descriptive; not a detector)
