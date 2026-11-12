@@ -40,7 +40,7 @@ compression, name paths, planetary characters, and entity seals.
 - Spare family modes + phonetic JSON carrier
 - Ontology + `references/source-manifest.yaml`
 - Hermes **wizard** v2.1: `--next` step runner, `--path quick|full`, sessions, `--apply`; full path `proof`/`kdf` (see `references/wizard.md`)
-- Pure **forge_core** compute boundary (`scripts/forge_core.py`); construct is I/O shell
+- Pure **forge_core** compute boundary (`src/sigil_forge/forge_core.py`); construct is I/O shell
 
 ### Proof of Intent (v0.12+)
 - Salted `intent_commitment` + Merkle `sigil_root` + `forge-manifest` on every run
@@ -68,7 +68,7 @@ compression, name paths, planetary characters, and entity seals.
 
 Product policy track (code + docs; release version/tag owned separately):
 
-- **Efficacy lint** — `scripts/policy_lint.py` (`lint_efficacy_text`, `assert_no_efficacy`) on framing notes and polish prompts
+- **Efficacy lint** — `src/sigil_forge/policy_lint.py` (`lint_efficacy_text`, `assert_no_efficacy`) on framing notes and polish prompts
 - **Policy check CLI** — `python3 scripts/sigil_forge.py policy check --text|…|--file …` (exit 0 clean / 1 hits)
 - **Authority-seal request exclusion** — construct + wizard fail closed on Goetic/Enochian/authority language; no silent Spare substitute (`AUTHORITY_SEAL_EXCLUDED`)
 - **Human-gated canon proposals** — learning ledger stays `PROPOSED`; `ledger promote --index N --i-confirm PROMOTE` → `canon-proposals.jsonl` only; **no** auto-canon, **no** `references/` mutation

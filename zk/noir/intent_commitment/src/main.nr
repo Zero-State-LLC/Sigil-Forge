@@ -4,7 +4,7 @@
 // Public:  expected_commitment[32] = SHA-256(nonce || intent_bytes)
 //
 // Proves knowledge of a preimage for the ZK companion commitment
-// (scripts/proofs/zk_commit.py). Domain-separated public commitment
+// (src/sigil_forge/proofs/zk_commit.py). Domain-separated public commitment
 // is bound off-circuit via the intent capsule.
 //
 // Requires nargo with std::hash::sha256. Core forge does not require nargo.

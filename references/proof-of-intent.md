@@ -92,4 +92,4 @@ verify both pass.
 
 - Runtime: `hermes-runtime-contract.md`
 - Policy: `safety-and-framing.md`, `authority-seal-namespace.md`
-- Engine: `scripts/forge_core.py`, `scripts/commitment.py`, `scripts/proofs/`
+- Engine: `src/sigil_forge/forge_core.py`, `src/sigil_forge/commitment.py`, `src/sigil_forge/proofs/`
