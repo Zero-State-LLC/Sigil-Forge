@@ -7,18 +7,18 @@ from pathlib import Path
 
 import pytest
 
-from bind_runes import build_bind_polylines, latin_to_runes
-from construct import run as construct_run
-from fuse import build_layout
-from normalize import normalize_intent
-from crypto_payload import intent_digest
-from receipt import (
+from sigil_forge.bind_runes import build_bind_polylines, latin_to_runes
+from sigil_forge.construct import run as construct_run
+from sigil_forge.fuse import build_layout
+from sigil_forge.normalize import normalize_intent
+from sigil_forge.crypto_payload import intent_digest
+from sigil_forge.receipt import (
     append_ledger,
     build_ledger_entry,
     read_ledger,
 )
-from rose_cross import build_rose_path, letter_to_slot
-from verify import run as verify_run
+from sigil_forge.rose_cross import build_rose_path, letter_to_slot
+from sigil_forge.verify import run as verify_run
 
 
 def test_latin_to_runes_and_bind_geometry():

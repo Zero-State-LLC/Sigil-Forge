@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from construct import run as construct_run
-from proofs.noir_provider import NoirProvider
-from proofs.registry import list_providers
-from proofs.verify_run import verify_proof_run
-from proofs.zk_commit import MAX_INTENT_BYTES, pad_intent, verify_zk_commit, zk_commit
+from sigil_forge.construct import run as construct_run
+from sigil_forge.proofs.noir_provider import NoirProvider
+from sigil_forge.proofs.registry import list_providers
+from sigil_forge.proofs.verify_run import verify_proof_run
+from sigil_forge.proofs.zk_commit import MAX_INTENT_BYTES, pad_intent, verify_zk_commit, zk_commit
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"
@@ -69,7 +69,7 @@ def test_construct_zk_knowledge_local_attestation(tmp_path: Path):
         assert "verified" in res
     else:
         # When noir skipped, manifest is noir skip — re-verify using local provider
-        from proofs.local_knowledge import LocalCapsuleProvider
+        from sigil_forge.proofs.local_knowledge import LocalCapsuleProvider
 
         att = run / "proofs" / "knowledge-attestation.json"
         # re-write manifest for local if noir skipped
@@ -151,7 +151,7 @@ def test_noir_provider_skipped_without_nargo():
 
 def test_zk_forge_skips_via_risc0(tmp_path: Path):
     """zk-forge is no longer a hard NOT_IMPLEMENTED; adapter skips offline."""
-    from construct import run as cr
+    from sigil_forge.construct import run as cr
 
     packet = cr(
         "I maintain calm focus",

@@ -1,4 +1,4 @@
-from policy_lint import (
+from sigil_forge.policy_lint import (
     detect_authority_seal_request,
     lint_efficacy_text,
     assert_no_efficacy,

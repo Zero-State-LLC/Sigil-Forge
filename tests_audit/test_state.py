@@ -24,13 +24,13 @@ class StateAudit(unittest.TestCase):
             env.pop("SIGIL_FORGE_STATE_DIR", None)
             code = (
                 "import sys; sys.path.insert(0, sys.argv[1]); "
-                "from paths import default_out_dir; "
-                "from receipt import default_receipts_path, default_ledger_path; "
+                "from sigil_forge.paths import default_out_dir; "
+                "from sigil_forge.receipt import default_receipts_path, default_ledger_path; "
                 "print(default_out_dir()); print(default_receipts_path()); "
                 "print(default_ledger_path())"
             )
             r = subprocess.run(
-                [sys.executable, "-c", code, str(ROOT / "scripts")],
+                [sys.executable, "-c", code, str(ROOT / "src")],
                 cwd=tmp,
                 env=env,
                 capture_output=True,

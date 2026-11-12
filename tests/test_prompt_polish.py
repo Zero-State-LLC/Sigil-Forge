@@ -1,4 +1,4 @@
-from prompt_polish import build_prompt
+from sigil_forge.prompt_polish import build_prompt
 
 
 def test_seed_from_digest():

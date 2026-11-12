@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from construct import run as construct_run
-from kamea import build_kamea_path, transliterate_latin_to_hebrew
-from phonetic import build_phonetic_artifact, compress_phonetic
-from planetary_seals import intelligence_character, spirit_character, traditional_seal_path
+from sigil_forge.construct import run as construct_run
+from sigil_forge.kamea import build_kamea_path, transliterate_latin_to_hebrew
+from sigil_forge.phonetic import build_phonetic_artifact, compress_phonetic
+from sigil_forge.planetary_seals import intelligence_character, spirit_character, traditional_seal_path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"
@@ -39,8 +39,8 @@ def test_kamea_goldens_match_engine():
         text = data["text"]
         square = data["square"]
         if enc.startswith("latin"):
-            from normalize import normalize_intent
-            from spare import letter_sequence
+            from sigil_forge.normalize import normalize_intent
+            from sigil_forge.spare import letter_sequence
 
             if enc == "latin_mod9_v1":
                 ll = letter_sequence(normalize_intent(text))

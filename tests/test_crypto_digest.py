@@ -1,5 +1,5 @@
-from crypto_payload import intent_digest
-from normalize import normalize_intent
+from sigil_forge.crypto_payload import intent_digest
+from sigil_forge.normalize import normalize_intent
 
 
 def test_digest_stable():

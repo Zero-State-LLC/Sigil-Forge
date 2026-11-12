@@ -1,4 +1,4 @@
-from kamea import letter_to_number, select_square, plot_path, KAMEA_SQUARES
+from sigil_forge.kamea import letter_to_number, select_square, plot_path, KAMEA_SQUARES
 
 
 def test_saturn_square_is_3x3_magic():

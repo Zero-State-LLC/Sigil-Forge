@@ -18,13 +18,19 @@ yaml = ["PyYAML>=6"]
 schema = ["jsonschema>=4"]
 argon2 = ["argon2-cffi>=23"]
 
+[project.scripts]
+sigil-forge = "sigil_forge.cli:main"
+
 [project.urls]
 Repository = "https://github.com/Zero-State-LLC/Sigil-Forge"
 
-[tool.setuptools]
-# Metadata only for now: the engine still lives in scripts/ and is not yet an
-# importable package. See docs/PACKAGING-RESEARCH-2026-11.md.
-py-modules = []
+[tool.setuptools.packages.find]
+# The engine is the sigil_forge package under src/. Data directories
+# (schemas/, references/, zk/) are not packaged yet: an installed wheel needs
+# SIGIL_FORGE_HOME or HERMES_SKILL_DIR pointing at a full skill tree, while a
+# checkout or Hermes install finds them by the SKILL.md + VERSION marker walk
+# in sigil_forge.paths.skill_root(). See docs/PACKAGING-RESEARCH-2026-11.md.
+where = ["src"]
 
 [tool.setuptools.dynamic]
 version = { file = "VERSION" }

@@ -7,9 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from construct import run as construct_run
-from wallpaper.pipeline import build_wallpaper
-from wallpaper.vault import (
+from sigil_forge.construct import run as construct_run
+from sigil_forge.wallpaper.pipeline import build_wallpaper
+from sigil_forge.wallpaper.vault import (
     build_vault_document,
     open_wallpaper_vault,
     pack_sf12,
@@ -172,7 +172,7 @@ def test_sf12_refuses_decompression_bomb():
 
     import pytest
 
-    from wallpaper import vault
+    from sigil_forge.wallpaper import vault
 
     bomb = zlib.compress(b"\x00" * (vault.SF12_MAX_SEALED_JSON + 1), 9)
     assert len(bomb) < 64_000  # fits well inside the 512 kB extract limit

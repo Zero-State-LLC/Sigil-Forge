@@ -121,20 +121,23 @@ validate_source() {
     "QUICKSTART.md"
     "install.sh"
     "scripts/sigil_forge.py"
-    "scripts/construct.py"
-    "scripts/verify.py"
-    "scripts/forge_core.py"
-    "scripts/intent_capsule.py"
-    "scripts/commitment.py"
-    "scripts/crypto_domains.py"
-    "scripts/stego_envelope.py"
-    "scripts/inspect_artifact.py"
     "scripts/validate_hermes_skill.py"
-    "scripts/proofs/__init__.py"
-    "scripts/proofs/registry.py"
-    "scripts/proofs/zk_commit.py"
-    "scripts/proofs/risc0_provider.py"
-    "scripts/wizard.py"
+    "src/sigil_forge/__init__.py"
+    "src/sigil_forge/cli.py"
+    "src/sigil_forge/construct.py"
+    "src/sigil_forge/verify.py"
+    "src/sigil_forge/forge_core.py"
+    "src/sigil_forge/intent_capsule.py"
+    "src/sigil_forge/commitment.py"
+    "src/sigil_forge/crypto_domains.py"
+    "src/sigil_forge/stego_envelope.py"
+    "src/sigil_forge/inspect_artifact.py"
+    "src/sigil_forge/validate_hermes_skill.py"
+    "src/sigil_forge/proofs/__init__.py"
+    "src/sigil_forge/proofs/registry.py"
+    "src/sigil_forge/proofs/zk_commit.py"
+    "src/sigil_forge/proofs/risc0_provider.py"
+    "src/sigil_forge/wizard.py"
     "references/hermes-runtime-contract.md"
     "references/proof-of-intent.md"
     "schemas/forge-packet.schema.json"
@@ -149,9 +152,9 @@ validate_source() {
   for f in "${required[@]}"; do
     [[ -f "${ROOT}/${f}" ]] || die "missing required file: ${f}"
   done
-  python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' \
-    "${ROOT}/scripts/sigil_forge.py" \
-    || die "scripts/sigil_forge.py failed syntax check"
+  python3 -c 'import ast, pathlib, sys; [ast.parse(pathlib.Path(f).read_text()) for f in sys.argv[1:]]' \
+    "${ROOT}/scripts/sigil_forge.py" "${ROOT}/src/sigil_forge/cli.py" \
+    || die "scripts/sigil_forge.py or src/sigil_forge/cli.py failed syntax check"
   # Frontmatter hygiene before copy (fail closed on bad skill packaging)
   if ! python3 "${ROOT}/scripts/validate_hermes_skill.py" >/dev/null; then
     die "validate_hermes_skill.py failed — fix SKILL.md frontmatter before install"

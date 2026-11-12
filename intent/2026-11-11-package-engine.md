@@ -1,6 +1,6 @@
 # Intent: package the engine as `sigil_forge`
 
-Status: ACCEPTED by the owner on 2026-11-12 ("do as recommended"). Step 1 (metadata) is in progress.
+Status: ACCEPTED by the owner on 2026-11-12 ("do as recommended"). Steps 1 (metadata) and 2 (marker-based root) are merged; step 3 (the move to `src/sigil_forge/`) is done in this PR.
 
 ## Problem
 

@@ -1,4 +1,4 @@
-from normalize import normalize_intent
+from sigil_forge.normalize import normalize_intent
 import pytest
 
 

@@ -1,7 +1,7 @@
-from normalize import normalize_intent
-from crypto_payload import intent_digest
-from fuse import build_layout
-from svg_export import layout_to_svg
+from sigil_forge.normalize import normalize_intent
+from sigil_forge.crypto_payload import intent_digest
+from sigil_forge.fuse import build_layout
+from sigil_forge.svg_export import layout_to_svg
 
 
 def test_layout_has_both_channels_when_letters_exist():

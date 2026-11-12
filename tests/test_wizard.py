@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from wizard import (
+from sigil_forge.wizard import (
     answers_to_construct_kwargs,
     apply_answers,
     create_session,

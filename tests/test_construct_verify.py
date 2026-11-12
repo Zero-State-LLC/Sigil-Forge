@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from construct import run as construct_run
-from verify import run as verify_run
+from sigil_forge.construct import run as construct_run
+from sigil_forge.verify import run as verify_run
 
 
 def test_construct_and_verify(tmp_path: Path):

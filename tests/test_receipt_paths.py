@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import receipt
+from sigil_forge import receipt
 
 ROOT = Path(__file__).resolve().parents[1]
 _VARS = (
@@ -68,7 +68,7 @@ def test_env_overrides_win(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
 def test_construct_writes_receipts_under_private_state_ledger(tmp_path, monkeypatch, request):
-    from construct import run as construct_run
+    from sigil_forge.construct import run as construct_run
 
     _clean(monkeypatch, tmp_path)
     out_existed = (ROOT / "out").exists()

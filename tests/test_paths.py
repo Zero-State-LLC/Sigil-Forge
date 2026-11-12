@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-import scripts.paths as paths
+from sigil_forge import paths
 
 
 def test_skill_root_contains_scripts():
     root = paths.skill_root()
-    assert (root / "scripts").is_dir() or (root / "scripts" / "paths.py").exists() or root.name == "Sigil-Forge" or (root / "VERSION").exists() or True
+    assert (root / "scripts").is_dir() or (root / "src" / "sigil_forge" / "paths.py").exists() or root.name == "Sigil-Forge" or (root / "VERSION").exists() or True
     # After layout exists:
-    assert (paths.skill_root() / "scripts" / "paths.py").is_file()
+    assert (paths.skill_root() / "src" / "sigil_forge" / "paths.py").is_file()
 
 
 def test_make_run_id_uses_digest_prefix_not_full_intent():
@@ -33,8 +33,8 @@ def _mode(p):
 @pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
 def test_default_state_and_sessions_are_owner_only(tmp_path, monkeypatch, request):
     """Sessions hold plaintext intent; default state must not be world-readable."""
-    import wizard
-    from construct import run as construct_run
+    from sigil_forge import wizard
+    from sigil_forge.construct import run as construct_run
 
     monkeypatch.setenv("SIGIL_FORGE_STATE_DIR", str(tmp_path / "state"))
     previous = os.umask(0o022)  # assert under a permissive umask
@@ -124,7 +124,7 @@ def test_hermes_skill_dir_alone_still_works(tmp_path, monkeypatch):
 def test_defaults_unchanged_with_nothing_set(tmp_path, monkeypatch):
     _clean(monkeypatch, tmp_path)
     assert paths.configured_root() is None
-    assert (paths.skill_root() / "scripts" / "paths.py").is_file()
+    assert (paths.skill_root() / "src" / "sigil_forge" / "paths.py").is_file()
     expected = (tmp_path / "home" / ".hermes" / "state" / "sigil-forge" / "products").resolve()
     assert paths.default_out_dir() == expected
 
@@ -166,7 +166,7 @@ def test_tilde_is_expanded(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
 def test_wizard_session_lands_under_sigil_forge_home(tmp_path, monkeypatch, request):
-    import wizard
+    from sigil_forge import wizard
 
     _clean(monkeypatch, tmp_path)
     home = tmp_path / "sf"

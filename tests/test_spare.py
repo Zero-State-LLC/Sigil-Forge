@@ -1,5 +1,5 @@
-from spare import reduce_letters, letter_sequence
-from normalize import normalize_intent
+from sigil_forge.spare import reduce_letters, letter_sequence
+from sigil_forge.normalize import normalize_intent
 
 
 def test_classic_reduction_drops_vowels_and_dupes():

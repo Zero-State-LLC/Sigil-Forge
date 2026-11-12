@@ -9,14 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from construct import run as construct_run
-from crypto_payload import open_intent
-from fuse import build_layout
-from layout_raster import layout_to_png_bytes
-from normalize import normalize_intent
-from crypto_payload import intent_digest
-from stego_png import MAGIC, extract_lsb, unpack_payload
-from verify import run as verify_run
+from sigil_forge.construct import run as construct_run
+from sigil_forge.crypto_payload import open_intent
+from sigil_forge.fuse import build_layout
+from sigil_forge.layout_raster import layout_to_png_bytes
+from sigil_forge.normalize import normalize_intent
+from sigil_forge.crypto_payload import intent_digest
+from sigil_forge.stego_png import MAGIC, extract_lsb, unpack_payload
+from sigil_forge.verify import run as verify_run
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts" / "sigil_forge.py"
@@ -45,7 +45,7 @@ def test_layout_raster_png_lsb_roundtrip(tmp_path: Path):
     # v0.12.1+: SF11 when sigil_root present; SF1 legacy still ok
     peek = extract_lsb(raw, 4)
     if peek == b"SF11":
-        from stego_envelope import unpack_envelope
+        from sigil_forge.stego_envelope import unpack_envelope
 
         payload = extract_lsb(raw, 4 + 1 + 1 + 32 + 32 + 4)
         env = unpack_envelope(payload)
@@ -82,7 +82,7 @@ def test_construct_polish_writes_prompt_and_gen_seed(tmp_path: Path):
 
 
 def test_open_unseals_packet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    from construct import PASSPHRASE_ENV
+    from sigil_forge.construct import PASSPHRASE_ENV
 
     monkeypatch.setenv(PASSPHRASE_ENV, "v02-test-secret")
     packet = construct_run(
@@ -124,7 +124,7 @@ def test_golden_intents_match_engine():
         data = json.loads(path.read_text(encoding="utf-8"))
         n = normalize_intent(data["intent"])
         assert n == data["normalized_intent"], path.name
-        from spare import reduce_letters
+        from sigil_forge.spare import reduce_letters
 
         assert reduce_letters(n) == data["spare_letters"], path.name
         assert intent_digest(n) == data["intent_digest"], path.name
