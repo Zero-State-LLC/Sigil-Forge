@@ -63,7 +63,7 @@ Never:
 - Forge an intent about violence, self-harm, controlling another person, or
   exploitation. Refuse before running anything.
 - Share, quote, post or sync anything from a run folder except the wallpaper
-  PNG. The packet, receipts, capsule, proofs and manifest are private.
+  PNG. The packet, receipts, capsule, proofs and method manifest are private.
 - Put my intent, my passphrase or a recovered intent into Slack, email, a
   pull request or any shared place.
 - Ask me to type a passphrase in chat. Use the secure secret card.

@@ -5,11 +5,23 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+### Added
+
+- `verify-root PATH` recomputes a run's `sigil_root` from its leaves and checks the manifests
+  against them. It needs no passphrase and works with the two public files alone.
+- `method-manifest.json`: the private method detail, written owner-only, with its own leaf
+  (`method_manifest_digest`) in the root.
+
 ### Changed
 
-- `forge-manifest.json` is documented as private. The README and the Proof of Intent reference
-  called it public, but it copies the packet's intent-derived `methods` block. Only its digest,
-  a leaf of `artifact-root.json`, is public. The file's content is unchanged.
+- `forge-manifest.json` is now safe to share (schema 2.0.0): method identifiers and digests
+  only, and channel ids and statuses without their detail. It used to copy the packet's
+  intent-derived `methods` block while being described as public. The detail moved to
+  `method-manifest.json`.
+- The two manifest leaves in `artifact-root.json` now differ: `forge_manifest_digest` covers the
+  public manifest and `method_manifest_digest` the private one. They used to be the same value.
+  `sigil_root` for new runs is computed over the new leaves; runs made earlier keep verifying,
+  and `verify-root` reports their schema 1.x manifest as not public.
 
 ## 0.17.0 - 2026-11-13
 

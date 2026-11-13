@@ -61,7 +61,7 @@ compression, name paths, planetary characters, and entity seals.
 - One-shot: `construct --wallpaper` (presentation via `--wp-mode`)
 
 ### Ops
-- CLI: construct, storyboard, storyboard-verify, verify, verify-proof, inspect, png-stats, wallpaper, wizard, open (`--capsule`), learn, ledger, policy, doctor, eval, check
+- CLI: construct, storyboard, storyboard-verify, verify, verify-root, verify-proof, inspect, png-stats, wallpaper, wizard, open (`--capsule`), learn, ledger, policy, doctor, eval, check
 - Receipts (private records, new files `0600`) + PROPOSED ledger
 - Hermes skill install: lean tree (excludes `docs/superpowers`), post-install `validate_hermes_skill` + `check`
 - Progressive refs: `hermes-runtime-contract.md`, `proof-of-intent.md`

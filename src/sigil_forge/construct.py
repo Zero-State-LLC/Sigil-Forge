@@ -12,7 +12,13 @@ from sigil_forge.artifact_root import build_sigil_root
 from sigil_forge.commitment import commit_intent, public_commitment
 from sigil_forge.crypto_payload import seal_intent
 from sigil_forge.forge_core import ForgeConfig, compute_forge
-from sigil_forge.forge_manifest import build_forge_manifest, write_manifest
+from sigil_forge.forge_manifest import (
+    METHOD_NAME,
+    build_forge_manifest,
+    build_method_manifest,
+    write_manifest,
+    write_private_manifest,
+)
 from sigil_forge.phonetic import build_phonetic_artifact
 from sigil_forge.intent_capsule import build_capsule, ciphertext_digest
 from sigil_forge.normalize import normalize_intent
@@ -645,6 +651,14 @@ def run(
 
         glyph_digest = file_sha256(str(staging / "glyph.svg"))
         pub_commit = public_commitment(commitment_rec)
+        # Private detail first; the public manifest names it by digest only.
+        method_manifest = build_method_manifest(
+            forge_version=version,
+            intent_digest=digest,
+            methods=methods,
+            channels=channels,
+        )
+        mm_digest = write_private_manifest(staging / METHOD_NAME, method_manifest)
         forge_manifest = build_forge_manifest(
             forge_version=version,
             intent_digest=digest,
@@ -653,6 +667,7 @@ def run(
             methods=methods,
             channels=channels,
             glyph_digest=glyph_digest,
+            method_manifest_digest=mm_digest,
         )
         mf_digest = write_manifest(staging / "forge-manifest.json", forge_manifest)
 
@@ -669,7 +684,7 @@ def run(
                 commitment_record=commitment_rec,
                 passphrase=passphrase,
                 forge_version=version,
-                method_manifest_digest=mf_digest,
+                method_manifest_digest=mm_digest,
                 artifact_root=None,
                 kdf=kdf_arg or ("auto" if prefer_for_seal else "pbkdf2-sha256"),
             )
@@ -679,7 +694,7 @@ def run(
             {
                 "intent_commitment": pub_commit["value"],
                 "intent_digest": digest,
-                "method_manifest_digest": mf_digest,
+                "method_manifest_digest": mm_digest,
                 "canonical_glyph_digest": glyph_digest,
                 "forge_manifest_digest": mf_digest,
                 "ciphertext_digest": ct_digest,
@@ -699,6 +714,7 @@ def run(
             encoding="utf-8",
         )
         artifacts["forge_manifest"] = str(final_dir / "forge-manifest.json")
+        artifacts["method_manifest"] = str(final_dir / METHOD_NAME)
         artifacts["artifact_root"] = str(final_dir / "artifact-root.json")
 
         # SF11 / v2 carrier bind: inject root into SVG metadata + PNG LSB (after root known)

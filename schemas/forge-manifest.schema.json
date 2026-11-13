@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sigil-forge.local/schemas/forge-manifest.schema.json",
   "title": "Sigil-Forge Public Forge Manifest",
-  "description": "Hashed into sigil_root; must not contain sigil_root field.",
+  "description": "Public manifest, hashed into sigil_root; must not contain sigil_root. Schema 2.x holds identifiers and digests only. Schema 1.x (runs made before the split) also holds method detail and is private.",
   "type": "object",
   "required": [
     "schema_version",
@@ -14,18 +14,49 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "schema_version": { "type": "string" },
-    "forge_engine_version": { "type": "string" },
-    "forge_version": { "type": "string" },
-    "intent_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "intent_commitment": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "mode": { "type": "string" },
-    "methods": { "type": "object" },
-    "channels": { "type": "array" },
-    "output": { "type": "object" },
-    "construction": { "type": "object" }
+    "schema_version": {
+      "type": "string"
+    },
+    "forge_engine_version": {
+      "type": "string"
+    },
+    "forge_version": {
+      "type": "string"
+    },
+    "intent_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "intent_commitment": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "methods": {
+      "type": "object"
+    },
+    "channels": {
+      "type": "array"
+    },
+    "output": {
+      "type": "object"
+    },
+    "construction": {
+      "type": "object"
+    },
+    "method_manifest_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    }
   },
   "not": {
-    "required": ["sigil_root"]
+    "required": [
+      "sigil_root"
+    ]
   }
 }

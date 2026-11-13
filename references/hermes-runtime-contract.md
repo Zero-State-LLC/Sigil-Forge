@@ -68,6 +68,7 @@ read for compatibility only.
 | `storyboard-verify` | Check a board from its index or from its sheet alone |
 | `verify-proof` | Check local/Noir/risc0 proof manifests for a run; the local attestation needs the passphrase |
 | `inspect` | Public PoI/SF11 surfaces without disclosing intent |
+| `verify-root` | Recompute a run's `sigil_root` and check its manifests from public files |
 | `png-stats` | Descriptive LSB statistics for a PNG; not a detector |
 | `wallpaper` | Device composites from a forge run |
 | `open` | Decrypt sealed packet; `--capsule` for intent-capsule.json |
@@ -111,7 +112,7 @@ Under `schemas/` (validate when `jsonschema` available; structural checks always
 - `channel-manifest.schema.json`  
 - `construction-result.schema.json`  
 - `wallpaper-spec.schema.json` / `wallpaper-receipt.schema.json`  
-- `intent-capsule.schema.json` / `artifact-root.schema.json` / `forge-manifest.schema.json`  
+- `intent-capsule.schema.json` / `artifact-root.schema.json` / `forge-manifest.schema.json` / `method-manifest.schema.json`  
 - `proof-manifest.schema.json`  
 
 ## Agent obligations

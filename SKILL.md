@@ -124,6 +124,7 @@ python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wallpaper --run out/sigil-for
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py open --wallpaper out/sigil-forge/<run-id>/wallpaper/phone-lock.png --json
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py inspect out/sigil-forge/<run-id>/glyph.svg
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py verify-proof out/sigil-forge/<run-id>
+python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py verify-root out/sigil-forge/<run-id>
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py storyboard --intent "…" --intent "…" --out out/sigil-forge
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py storyboard-verify out/sigil-forge/storyboards/storyboard-<board_id>.svg
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py png-stats out/sigil-forge/<run-id>/glyph.png

@@ -241,7 +241,8 @@ Public artifacts can bind to a privacy-preserving **intent commitment** without 
 | `intent_commitment` | Salted per-run commitment (value public; **nonce private**) |
 | `intent_commitment_zk` | Fixed-width companion for optional circuits |
 | `sigil_root` | Merkle root over public leaves (no self-reference) |
-| `forge-manifest.json` | Config/outputs hashed into root. Only its digest is public; the file is **private** (carries intent-derived method data) |
+| `forge-manifest.json` | **Public** config/outputs hashed into root: identifiers and digests only |
+| `method-manifest.json` | **Private** method detail (intent-derived), hashed into root by its digest |
 | `intent-capsule.json` | Sealed witness (intent + nonce) behind passphrase |
 | SF11 stego | Digest + root carrier; dual-verify with SF1 |
 | `inspect` / `verify-proof` | Public inspection / proof status (no default plaintext dump) |
@@ -330,7 +331,8 @@ See [references/wallpaper-framework.md](references/wallpaper-framework.md) · [r
 |--------|------|
 | `glyph.svg` / `glyph.png` | Master geometry; offline PNG + LSB (SF1 / SF11) |
 | `forge-packet.json` (+ `.md`) | Channels, methods, ontology, digests, commitment, `sigil_root` |
-| `forge-manifest.json` | Forge config/outputs (hashed into root; no self-root). **Private**: carries intent-derived method data |
+| `forge-manifest.json` | Public forge config/outputs: identifiers and digests only (hashed into root; no self-root) |
+| `method-manifest.json` | **Private** method detail derived from the intent (hashed into root by its digest) |
 | `artifact-root.json` | Merkle leaves + `sigil_root` |
 | `intent-capsule.json` | Sealed witness when passphrase + proof/seal path |
 | `run-receipt.json` | Run integrity receipt. **Private**: carries intent-derived method data |
@@ -396,6 +398,7 @@ The result then has `anchored: true`. File frames come before
 construct     Forge multi-channel sigil + packet (+ optional --proof)
 storyboard    One forge run per intent (1-12) + digest-only index + sheet
 storyboard-verify  Check a board from its index or its sheet
+verify-root   Check a run's sigil_root and manifests from public files (no passphrase)
 verify        Recover intent digest (+ sigil_root when SF11)
 inspect       Public carrier inspection (digest/root; no plaintext)
 png-stats     LSB-plane statistics of a PNG (descriptive; not a detector)
