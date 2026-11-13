@@ -5,6 +5,8 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+## 0.17.0 - 2026-11-13
+
 ### Added
 
 - Storyboard sheet: `storyboard` now also writes `storyboards/storyboard-<board_id>.svg`, one
