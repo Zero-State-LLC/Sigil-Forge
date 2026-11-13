@@ -26,6 +26,7 @@ def verify_proof_run(
         "sigil_root": None,
         "forge_version": None,
         "provider": None,
+        "attestation_present": False,
         "detail": "",
     }
     if not run.is_dir():
@@ -104,14 +105,17 @@ def verify_proof_run(
         la = manifest["local_attestation"]
         if isinstance(la, dict) and la.get("public_inputs"):
             local_extra_pub = dict(la["public_inputs"])
-    # With an unbound Noir proof, only a real check may still pass: opening the
-    # capsule with the passphrase. The passphrase-less check reads the
-    # attestation file's own "ok" flag and must not rescue a tampered run.
-    if local_att.is_file() and not (bind_error and not passphrase):
+    # The local attestation is verified by opening the capsule, which needs the
+    # passphrase. Without one its presence is reported but proves nothing.
+    out["attestation_present"] = local_att.is_file()
+    needs_passphrase = local_att.is_file() and not passphrase
+    if local_att.is_file() and passphrase:
         attempts.append(("local_capsule", local_att, local_extra_pub))
 
     if not attempts and manifest.get("status") == "skipped":
         out["detail"] = manifest.get("detail") or "proof skipped"
+        if needs_passphrase:
+            out["detail"] += "; passphrase required to verify the local attestation"
         return out
 
     last_err = bind_error
@@ -137,5 +141,8 @@ def verify_proof_run(
             return out
         last_err = f"{pname} verification failed"
 
+    if needs_passphrase:
+        hint = "passphrase required to verify the local attestation"
+        last_err = f"{last_err}; {hint}" if last_err else hint
     out["detail"] = last_err or "verification failed"
     return out

@@ -369,7 +369,7 @@ storyboard    One forge run per intent (1-12) + digest-only index
 verify        Recover intent digest (+ sigil_root when SF11)
 inspect       Public carrier inspection (digest/root; no plaintext)
 png-stats     LSB-plane statistics of a PNG (descriptive; not a detector)
-verify-proof  Proof-of-intent check for a run (optional passphrase)
+verify-proof  Proof-of-intent check for a run (passphrase needed unless a Noir proof exists)
 wizard        Guided interview (--next / --apply / sessions / --path quick|full)
 wallpaper     Immutable glyph + atmosphere composite
 open          Decrypt sealed_intent; --capsule for intent-capsule.json

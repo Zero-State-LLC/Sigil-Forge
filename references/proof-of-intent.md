@@ -70,7 +70,9 @@ python3 scripts/sigil_forge.py verify-proof out/sigil-forge/<run-id> \
 ```
 
 `verify-proof` reports provider status. Missing Noir/risc0 → **skipped**, not
-a forge failure. Only claim functional ZK when generate **and** independent
+a forge failure. The local attestation is verified by opening the capsule, so
+it needs the passphrase: without one the result is `verified: false` with
+`attestation_present: true`. A generated Noir proof verifies without it. Only claim functional ZK when generate **and** independent
 verify both pass.
 
 ### Proof modes

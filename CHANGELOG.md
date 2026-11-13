@@ -18,6 +18,9 @@ All notable changes to this project are recorded here, newest first. The format 
   function, because Noir 1.0 removed `std::hash::sha256`. The intent length is now a public
   input bound to the bytes, so the published length is proven. An intent containing a NUL
   byte is refused by the Noir path.
+- `verify-proof` without a passphrase no longer reports `verified: true` because the local
+  attestation file says `"ok": true`. It reports `verified: false`, `attestation_present: true`
+  and says a passphrase is required. With the passphrase, or with a Noir proof, nothing changes.
 - `verify-proof` credits a Noir proof only when its commitment and length equal the ones in
   the run's packet. A failed Noir step reports an exit code, never tool output.
 - Noir proving and verifying run in a private temporary copy of the circuit. The installed

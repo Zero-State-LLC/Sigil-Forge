@@ -115,12 +115,10 @@ class LocalCapsuleProvider:
         passphrase = extra.get("passphrase")
         capsule = extra.get("capsule")
         if not passphrase or not capsule:
-            # Without passphrase, only check attestation file structure
-            try:
-                att = json.loads(Path(proof_path).read_text(encoding="utf-8"))
-            except Exception:
-                return False
-            return bool(att.get("ok")) and att.get("provider") == self.name
+            # The attestation file is a note this tool wrote, not evidence:
+            # anyone who can write the run directory can write `"ok": true`.
+            # Verifying means opening the capsule, which needs the passphrase.
+            return False
         try:
             opened = open_capsule(capsule, passphrase)
             nonce = nonce_from_b64(opened["commitment_nonce_b64"])
