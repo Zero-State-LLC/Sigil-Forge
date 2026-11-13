@@ -29,10 +29,17 @@ digests-only:
 So: do not publish, attach or sync `run-receipt.json` or `run-receipts.jsonl`,
 and do not point `SIGIL_FORGE_RECEIPTS` at a shared location. The engine
 creates new receipt files owner-only (`0600`) and keeps the default log in an
-owner-only directory; a file that already exists keeps its mode, and the other
-files of a run directory written to an operator-chosen `--out` are not
-restricted. The surfaces meant to be shared are the wallpaper PNG,
-`artifact-root.json` and the storyboard index.
+owner-only directory; a file that already exists keeps its mode.
+
+The same holds for two other files of a run: `forge-packet.json` (plaintext
+intent unless sealed) and `forge-manifest.json` (the same intent-derived
+`methods` block as a receipt). Every run folder is created owner-only
+(`0700`), including under an operator-chosen `--out`, so other users cannot
+read the files inside it even though most of them have ordinary modes.
+Copying a run folder, or changing its mode, removes that protection.
+
+The surfaces meant to be shared are the wallpaper PNG, `glyph.svg`,
+`artifact-root.json`, and a storyboard's index and sheet.
 
 `canon_status` on receipts is `OBSERVATION`.
 

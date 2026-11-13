@@ -136,3 +136,59 @@ def test_receipt_has_no_plaintext_or_nonce_but_is_not_digests_only(tmp_path, mon
     assert "nonce" not in text.lower()
     methods = json.loads(text)["methods"]
     assert methods["spare"]["spare_result"]["spare_letters"] == "mntclfs"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
+def test_run_folder_is_owner_only_even_under_a_chosen_out(tmp_path, monkeypatch, request):
+    """Private run files rely on this: most have ordinary modes inside it."""
+    from sigil_forge.construct import run as construct_run
+
+    _clean(monkeypatch, tmp_path)
+    monkeypatch.setenv("SIGIL_FORGE_RECEIPTS", str(tmp_path / "log.jsonl"))
+    previous = os.umask(0o022)
+    request.addfinalizer(lambda: os.umask(previous))
+    out = tmp_path / "chosen"
+    out.mkdir(mode=0o755)
+    packet = construct_run("I maintain calm focus", out_root=out)
+    run_dir = Path(packet["artifacts"]["run_dir"])
+    assert run_dir.parent == out
+    assert run_dir.stat().st_mode & 0o777 == 0o700
+    assert out.stat().st_mode & 0o777 == 0o755  # the operator's folder is left alone
+
+
+def test_manifest_is_private_and_the_root_needs_only_its_digest(tmp_path, monkeypatch):
+    """Pins why forge-manifest.json is private, and that the public file does not need it."""
+    import json
+
+    from sigil_forge.construct import run as construct_run
+
+    _clean(monkeypatch, tmp_path)
+    monkeypatch.setenv("SIGIL_FORGE_RECEIPTS", str(tmp_path / "log.jsonl"))
+    intent = "I maintain calm focus"
+    packet = construct_run(intent, out_root=tmp_path / "products")
+    run_dir = Path(packet["artifacts"]["run_dir"])
+    raw = (run_dir / "forge-manifest.json").read_bytes()
+    manifest = json.loads(raw)
+    # Intent-derived, so private ...
+    assert manifest["methods"]["spare"]["spare_result"]["spare_letters"] == "mntclfs"
+    # ... but no plaintext and no nonce value.
+    text = raw.decode("utf-8").lower()
+    assert intent.lower() not in text
+    assert not any("nonce" in key.lower() for key in _keys(manifest))
+    # The public root file carries the manifest's digest, not its content.
+    root_text = (run_dir / "artifact-root.json").read_text(encoding="utf-8")
+    assert "mntclfs" not in root_text and "methods" not in root_text
+    from sigil_forge.forge_manifest import manifest_digest
+
+    leaves = {leaf["type"]: leaf["value"] for leaf in json.loads(root_text)["leaves"]}
+    assert leaves["forge_manifest_digest"] == manifest_digest(manifest)
+
+
+def _keys(obj):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield k
+            yield from _keys(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _keys(v)

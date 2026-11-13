@@ -5,6 +5,12 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+### Changed
+
+- `forge-manifest.json` is documented as private. The README and the Proof of Intent reference
+  called it public, but it copies the packet's intent-derived `methods` block. Only its digest,
+  a leaf of `artifact-root.json`, is public. The file's content is unchanged.
+
 ## 0.17.0 - 2026-11-13
 
 ### Added

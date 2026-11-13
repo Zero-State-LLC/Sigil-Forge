@@ -1,4 +1,11 @@
-"""Public forge manifest — hashed into sigil_root (never contains sigil_root)."""
+"""Forge manifest — hashed into sigil_root (never contains sigil_root).
+
+Only its digest is public: that digest is a leaf of ``artifact-root.json``.
+The file itself is private. It copies the packet's ``methods`` block, which
+is derived from the intent (reduced letters, the Hebrew transliteration,
+kamea and rose-cross sequences), so the intent can largely be read back from
+it. It holds no plaintext intent and no nonce.
+"""
 
 from __future__ import annotations
 
