@@ -147,7 +147,7 @@ The personal v0.14.0 line is not carried over in full. These parts were left out
 - New ledger files go to `<state root>/ledger/`. An existing ledger at the old location keeps
   being used.
 - The Noir zk-knowledge proof path is experimental. Its port to `bb` is tracked in issue #15
-  (done after this release; see Unreleased).
+  (done in 0.16.0).
 
 ---
 
