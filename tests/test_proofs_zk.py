@@ -523,3 +523,47 @@ def test_noir_real_verify_proof_refuses_another_runs_proof(tmp_path):
     assert with_pass["provider"] == "local_capsule"
     assert with_pass["proof_kind"] == "knowledge_of_intent"
     assert verify_proof_run(victim, passphrase="wrong")["verified"] is False
+
+
+# ------------------------------------------- passphrase-less verify (issue #37)
+
+
+def _commitment_run(tmp_path: Path) -> Path:
+    packet = construct_run(
+        "I maintain calm focus", out_root=tmp_path, passphrase="c-pass", proof="commitment"
+    )
+    return Path(packet["artifacts"]["run_dir"])
+
+
+def test_verify_proof_without_passphrase_is_not_verified(tmp_path):
+    """An attestation file saying ok is a note, not a proof."""
+    run = _commitment_run(tmp_path)
+    out = verify_proof_run(run)
+    assert out["verified"] is False
+    assert out["attestation_present"] is True
+    assert "passphrase required" in out["detail"]
+    with_pass = verify_proof_run(run, passphrase="c-pass")
+    assert with_pass["verified"] is True and with_pass["provider"] == "local_capsule"
+    assert verify_proof_run(run, passphrase="wrong")["verified"] is False
+
+
+def test_local_provider_does_not_accept_a_file_that_says_ok(tmp_path):
+    from sigil_forge.proofs.local_knowledge import LocalCapsuleProvider
+
+    forged = tmp_path / "knowledge-attestation.json"
+    forged.write_text(json.dumps({"ok": True, "provider": "local_capsule"}), encoding="utf-8")
+    p = LocalCapsuleProvider()
+    assert p.verify(forged, {}) is False
+    assert p.verify(forged, {}, extra={"passphrase": "x"}) is False
+    assert p.verify(forged, {}, extra={"capsule": {}}) is False
+
+
+def test_verify_proof_cli_without_passphrase_exits_nonzero(tmp_path, monkeypatch):
+    run = _commitment_run(tmp_path)
+    env = {k: v for k, v in os.environ.items() if k != "SIGIL_FORGE_PASSPHRASE"}
+    r = subprocess.run(
+        [sys.executable, str(CLI), "verify-proof", str(run)],
+        capture_output=True, text=True, cwd=str(ROOT), env=env,
+    )
+    assert r.returncode == 1
+    assert json.loads(r.stdout)["verified"] is False
