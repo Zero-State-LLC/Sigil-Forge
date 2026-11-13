@@ -3,6 +3,16 @@
 All notable changes to this project are recorded here, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Changed
+
+- Run receipts are documented as private operator records. They hold no plaintext intent, but
+  their `methods` block is derived from the intent and `intent_digest` is an unsalted hash. The
+  receipt format is unchanged.
+- New `run-receipt.json` files and a newly created `run-receipts.jsonl` are owner-only (`0600`).
+  Existing files keep their mode.
+
 ## 0.15.0 - 2026-11-12
 
 This release is numbered 0.15.0, not 0.14.0. An earlier personal line of this project already
