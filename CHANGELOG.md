@@ -7,6 +7,11 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ### Added
 
+- A Grok Bot skill: `integrations/grok-bot/SKILL.md`, with a README on importing it. It runs
+  the same engine from a standalone install and changes no engine behaviour. Tests check that
+  every command in it exists and that its install and forge steps work with no Hermes present.
+  It has not been run inside Grok Bot itself.
+
 - The Noir `zk-knowledge` proof works with the current toolchain (nargo 1.0.0, bb 6.0.0):
   `nargo execute`, then `bb prove` and `bb verify`. It needs `bb` as well as `nargo` now.
 - `scripts/install-noir-toolchain.sh` installs both tools from the official release archives
