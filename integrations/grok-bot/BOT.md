@@ -94,7 +94,8 @@ Before you publish, know that:
 - **The recipient gets a copy of the configuration only.** They do not get
   your Bot's computer, sign-ins or history, so their Bot has no engine at
   first. The skill handles this: it checks, then asks to install.
-- **No release tag exists yet,** so the skill installs from `main`.
+- **The skill installs a tagged release,** not `main`. To move a Bot to a
+  newer release, re-import the skill from that release.
 
 ## What is not verified
 

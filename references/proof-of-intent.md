@@ -1,6 +1,6 @@
 # Proof of Intent (agent reference)
 
-**Skill version:** v0.12.6+ · Load this when the operator asks about commitments,
+**Since:** v0.12 (release in `VERSION`) · Load this when the operator asks about commitments,
 capsules, `sigil_root`, SF11 stego, `inspect`, `verify-proof`, or ZK/knowledge proofs.
 
 **Not metaphysics.** PoI surfaces bind **provenance** of a forge run to a

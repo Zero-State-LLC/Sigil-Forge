@@ -158,14 +158,15 @@ STEPS: list[dict[str, Any]] = [
         "choices": [
             "letter_monogram",
             "pictorial",
-            "automatic_drawing",
-            "mantric_alphabet",
+            "automatic_form",
+            "alphabet_of_desire",
             "phonetic_mantric",
+            "hybrid",
         ],
         "default": "letter_monogram",
         "help": (
             "letter_monogram is the only fully geometry-computable default. "
-            "pictorial/automatic_drawing are provenance-only (semantic NOT_COMPUTABLE). "
+            "pictorial/automatic_form are provenance-only (semantic NOT_COMPUTABLE). "
             "phonetic_mantric pairs with the phonetic carrier."
         ),
         "why": "Spare family is multi-method; we refuse to fake freehand geometry.",

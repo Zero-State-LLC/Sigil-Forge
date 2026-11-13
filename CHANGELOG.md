@@ -5,19 +5,35 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+## 0.16.0 - 2026-11-13
+
+Tags `v0.13.1`, `v0.15.0` and `v0.16.0` were added with this release; the two earlier releases
+had been cut without one. There is no `v0.14.0` tag in this line (see 0.15.0 below).
+
 ### Added
 
+- `scripts/set_version.py` writes the version to every place it appears, and `--check` fails
+  when one disagrees with `VERSION`. CI runs the check, and a test requires a changelog section
+  and a roadmap row for the current version.
 - A Grok Bot skill: `integrations/grok-bot/SKILL.md`, with a README on importing it. It runs
   the same engine from a standalone install and changes no engine behaviour. Tests check that
   every command in it exists and that its install and forge steps work with no Hermes present.
   It has not been run inside Grok Bot itself.
 - `integrations/grok-bot/BOT.md`: a name, description and brief for a dedicated Grok Bot that
-  uses that skill, with notes on sharing it as a template.
-
+  uses that skill, with notes on sharing it as a template. The skill installs the tagged
+  release, not `main`.
 - The Noir `zk-knowledge` proof works with the current toolchain (nargo 1.0.0, bb 6.0.0):
   `nargo execute`, then `bb prove` and `bb verify`. It needs `bb` as well as `nargo` now.
 - `scripts/install-noir-toolchain.sh` installs both tools from the official release archives
   after checking pinned SHA-256 hashes. CI runs the real prove and verify tests with it.
+
+### Fixed
+
+- The wizard's `spare_mode` step offered `automatic_drawing` and `mantric_alphabet`, which the
+  engine rejects. It now offers the real mode names, and a test keeps the two lists in step.
+- Docs brought up to date with the code: default output and state locations, the channel list
+  (16 channels), optional dependencies, the Spare mode names, crypto defaults, and the command
+  tables.
 
 ### Changed
 

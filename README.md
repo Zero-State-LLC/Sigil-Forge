@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>v0.15.0</strong> · Hermes skill · offline-first · wallpaper product · MIT
+  <strong>v0.16.0</strong> · Hermes skill · offline-first · wallpaper product · MIT
 </p>
 
 <p align="center">
@@ -77,7 +77,7 @@ Install is a **lean skill tree**: excludes `.git`, `out/`, `.venv`, caches, `.wo
 
 **Standalone by design:** Sigil-Forge runs on its own. Hermes, Abraxas or any other host is optional: an integration reads the public output files or calls the CLI, and the engine never imports a host stack (`tests/test_standalone.py` enforces this).
 
-**Requirements:** Python 3.10+ (stdlib). No pip packages for the core path. Optional: `jsonschema` for stricter packet validation; optional `argon2-cffi` for Argon2id sealing; optional `cryptography` makes AES-GCM use a vetted library instead of the built-in pure-Python implementation (sealed files are interchangeable; `doctor` shows `aes_backend`).
+**Requirements:** Python 3.10+ (stdlib). No pip packages for the core path. Optional: `PyYAML` for full YAML parsing of skill frontmatter and manifests; `jsonschema` for stricter packet validation; optional `argon2-cffi` for Argon2id sealing; optional `cryptography` makes AES-GCM use a vetted library instead of the built-in pure-Python implementation (sealed files are interchangeable; `doctor` shows `aes_backend`).
 
 From a clone without installing:
 
@@ -190,7 +190,7 @@ python3 scripts/sigil_forge.py wallpaper --run out/sigil-forge/<run-id> \
 --planetary-geometry auto|plate|name_on_kamea|reconstruction
 
 # Spare family
---spare-mode letter_monogram|pictorial|automatic_drawing|mantric_alphabet|phonetic_mantric
+--spare-mode letter_monogram|pictorial|automatic_form|alphabet_of_desire|phonetic_mantric|hybrid   # only letter_monogram computes geometry
 --phonetic
 
 # Privacy + Proof of Intent (prefer env over --passphrase — argv is visible in ps)
@@ -227,7 +227,7 @@ python3 scripts/sigil_forge.py open out/sigil-forge/*/forge-packet.json
 python3 scripts/sigil_forge.py open --capsule out/sigil-forge/*/intent-capsule.json --json
 ```
 
-Artifacts land under `out/sigil-forge/<run-id>/`. Run ids use timestamp + digest prefix so paths avoid full intent text.
+Without `--out`, a run lands in `<state root>/products/<run-id>/` (see Path resolution below); the `out/sigil-forge/` paths in these examples are explicit `--out` values. Run ids use timestamp + digest prefix so paths avoid full intent text.
 
 ---
 
@@ -390,13 +390,13 @@ python3 scripts/sigil_forge.py doctor
 python3 scripts/sigil_forge.py eval
 ```
 
-Env: `HERMES_SKILL_DIR`, `SIGIL_FORGE_PASSPHRASE`, optional `SIGIL_FORGE_BG_COMMAND`.
+Env: `HERMES_SKILL_DIR`, `HERMES_HOME`, `SIGIL_FORGE_HOME`, `SIGIL_FORGE_STATE_DIR`, `SIGIL_FORGE_PASSPHRASE`; optional `SIGIL_FORGE_BG_COMMAND`, `SIGIL_FORGE_AES_BACKEND`, and the per-file overrides `SIGIL_FORGE_LEDGER`, `SIGIL_FORGE_RECEIPTS`, `SIGIL_FORGE_CANON_PROPOSALS`.
 
 Path resolution (works under any agent, or as a plain CLI):
 
-- Install root: first set of `SIGIL_FORGE_HOME`, `SIGIL_FORGE_ROOT`, `SIGIL_FORGE_DIR`, `SIGIL_FORGE_SKILL_DIR`, else `HERMES_SKILL_DIR`, else this checkout.
-- State (products, wizard sessions): `SIGIL_FORGE_STATE_DIR` if set; else `<root>/state` when one of the four `SIGIL_FORGE_*` root variables is set; else `$HERMES_HOME/state/sigil-forge` (`HERMES_HOME` defaults to `~/.hermes`).
-- With none of the new variables set, behaviour is unchanged. The root variable must point at a complete install (it is also where `schemas/` etc. are read from).
+- Install root: the first of `SIGIL_FORGE_HOME`, `SIGIL_FORGE_ROOT`, `SIGIL_FORGE_DIR`, `SIGIL_FORGE_SKILL_DIR` that points at a real install (has `SKILL.md` and `VERSION`), else `HERMES_SKILL_DIR`, else this checkout.
+- State (`products/`, `wizard-sessions/`, and `ledger/` with the receipt log, learning ledger and canon proposals): `SIGIL_FORGE_STATE_DIR` if set; else `<root>/state` when one of the four `SIGIL_FORGE_*` root variables is set; else `$HERMES_HOME/state/sigil-forge` (`HERMES_HOME` defaults to `~/.hermes`).
+- With none of the new variables set, behaviour is unchanged. A root variable that points at a complete install is also where `schemas/` etc. are read from; one that does not is used only as the home for `state/`.
 
 ### PNG statistics
 

@@ -1,6 +1,6 @@
 # Hermes runtime contract
 
-Version: **v4** (Sigil-Forge v0.13.1+, Hermes Agent v0.21 / tag v2026.8.31)
+Version: **v4** (introduced in Sigil-Forge v0.13.1; Hermes Agent v0.21 / tag v2026.8.31). The Sigil-Forge release is in `VERSION`.
 
 Sigil-Forge is a **standalone Hermes skill** (not a Hermes plugin).  
 Default install path: `~/.hermes/skills/sigil-forge`. Skill name: `sigil-forge`.
@@ -21,20 +21,34 @@ Optional thin plugin adapters later must wrap this skill, not replace it.
 | Layer | Owns | Does **not** own |
 |-------|------|------------------|
 | **Agent contract** (`SKILL.md`, `references/`) | Intake, wizard interview, mode, safety judgment, packet narrative, when to invoke scripts / host image tools | Inventing glyph geometry or fake stego success |
-| **Construction engine** (`scripts/`) | Normalize, digest, optional encrypt, Spare, kamea, fusion, SVG/PNG, stego, wallpaper composite, verify, PoI surfaces | Mystical guarantees, external image APIs, mutating skill `references/` |
+| **Construction engine** (package `src/sigil_forge/`, run via `scripts/sigil_forge.py`) | Normalize, digest, optional encrypt, Spare, kamea, fusion, SVG/PNG, stego, wallpaper composite, verify, PoI surfaces | Mystical guarantees, external image APIs, mutating skill `references/` |
 
 ## Skill root resolution
 
-1. `HERMES_SKILL_DIR` if set  
-2. Else install/clone directory containing this skill  
+1. `SIGIL_FORGE_HOME` (or `SIGIL_FORGE_ROOT`, `SIGIL_FORGE_DIR`,
+   `SIGIL_FORGE_SKILL_DIR`) if it points at a real install (has `SKILL.md`
+   and `VERSION`)  
+2. Else `HERMES_SKILL_DIR` if set  
+3. Else the install/clone directory containing this skill  
 
-Default out: `$HERMES_HOME/state/sigil-forge/products/<run-id>/`.
-`SIGIL_FORGE_STATE_DIR` overrides the state root, yielding
-`$SIGIL_FORGE_STATE_DIR/products/<run-id>/`; explicit `--out` overrides the product root.
-`HERMES_HOME` defaults to `~/.hermes`.
-Wizard sessions: `$HERMES_HOME/state/sigil-forge/wizard-sessions/<id>.json`
-(or `$SIGIL_FORGE_STATE_DIR/wizard-sessions/<id>.json`).
-Legacy skill-root `out/wizard-sessions` are read for compatibility only.
+**State root:** `SIGIL_FORGE_STATE_DIR` if set; else `<root>/state` when one
+of the four `SIGIL_FORGE_*` root variables is set; else
+`$HERMES_HOME/state/sigil-forge` (`HERMES_HOME` defaults to `~/.hermes`).
+
+Under the state root:
+
+- `products/<run-id>/`: default output. An explicit `--out` overrides it.
+  Under Hermes with nothing else set this is
+  `$HERMES_HOME/state/sigil-forge/products/<run-id>/`; with the override it is
+  `$SIGIL_FORGE_STATE_DIR/products/<run-id>/`.
+- `wizard-sessions/<id>.json`: wizard sessions
+  (`$HERMES_HOME/state/sigil-forge/wizard-sessions/<id>.json` under Hermes).
+- `ledger/`: `run-receipts.jsonl`, `learning-ledger.jsonl` and
+  `canon-proposals.jsonl` (each has its own override variable; see
+  `receipts-and-ledger.md`).
+
+Legacy skill-root `out/wizard-sessions` and `out/sigil-forge/*.jsonl` are
+read for compatibility only.
 `run-id` = timestamp + short digest prefix.
 
 ## Artifact rule
@@ -50,8 +64,10 @@ Legacy skill-root `out/wizard-sessions` are read for compatibility only.
 | `wizard` | Guided interview: `--script`, `--next`, `--session-new`, `--apply`; full path includes `proof`/`kdf` |
 | `construct` | Full forge (expert / non-wizard); optional `--proof` / `--kdf` / `--seal-packet` |
 | `verify` | Recover digest / integrity from SVG or PNG |
-| `verify-proof` | Check local/Noir/risc0 proof manifests for a run |
+| `storyboard` | One forge run per intent (1 to 12), with a digest-only index |
+| `verify-proof` | Check local/Noir/risc0 proof manifests for a run; the local attestation needs the passphrase |
 | `inspect` | Public PoI/SF11 surfaces without disclosing intent |
+| `png-stats` | Descriptive LSB statistics for a PNG; not a detector |
 | `wallpaper` | Device composites from a forge run |
 | `open` | Decrypt sealed packet; `--capsule` for intent-capsule.json |
 | `learn` / `ledger` | PROPOSED learning observations; human `ledger promote` only |

@@ -5,10 +5,10 @@ Spare is a **method family**, not only vowel-stripping monograms.
 | Mode | Determinism | Status |
 |------|-------------|--------|
 | `letter_monogram` | deterministic | **shipped** (default) |
-| `pictorial` | assisted | registered |
-| `automatic_form` | assisted | registered |
+| `pictorial` | assisted | registered, geometry deferred |
+| `automatic_form` | assisted | registered, geometry deferred |
 | `alphabet_of_desire` | corpus_backed | deferred |
-| `phonetic_mantric` | assisted | registered |
+| `phonetic_mantric` | assisted | registered, geometry deferred |
 | `hybrid` | assisted | deferred |
 
 ## letter_monogram (default)

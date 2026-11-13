@@ -54,7 +54,7 @@
         </div>
         <div class="marquee__veil" aria-hidden="true"></div>
         <div class="marquee__copy">
-          <p class="eyebrow">v0.15.0 · Hermes skill · MIT</p>
+          <p class="eyebrow">v0.16.0 · Hermes skill · MIT</p>
           <h1 class="marquee__title">
             Intent, <span class="verb">layered</span> into the image.
           </h1>
@@ -67,7 +67,7 @@
       </section>
 
       <aside class="meter" aria-label="Release readout">
-        <p class="meter__label meter__label--left">Release · 0.15.0</p>
+        <p class="meter__label meter__label--left">Release · 0.16.0</p>
         <div class="meter__bars" id="meter-bars" aria-hidden="true"></div>
         <p class="meter__label meter__label--right">Python · 3.10+</p>
       </aside>
@@ -149,7 +149,8 @@
                 <code>forge-packet.json</code>,
                 <code>forge-manifest.json</code>,
                 <code>sigil_root</code> — under
-                <code>out/sigil-forge/&lt;run-id&gt;/</code>.
+                <code>&lt;state root&gt;/products/&lt;run-id&gt;/</code>, or the
+                folder you pass to <code>--out</code>.
               </p>
             </div>
           </li>
@@ -215,7 +216,8 @@
           <h2 class="section__title">Clone, install, forge.</h2>
           <p class="section__body">
             Python 3.10+ stdlib for the core path. Optional
-            <code>argon2-cffi</code> and <code>jsonschema</code>. Lean install
+            <code>PyYAML</code>, <code>jsonschema</code>,
+            <code>argon2-cffi</code> and <code>cryptography</code>. Lean install
             excludes implementation plans under <code>docs/superpowers</code>.
           </p>
         </div>
@@ -270,7 +272,7 @@
             >Proof of Intent</a
           >
         </nav>
-        <span class="muted">© 2026 · v0.15.0</span>
+        <span class="muted">© 2026 · v0.16.0</span>
       </div>
     </footer>
 
