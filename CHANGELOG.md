@@ -11,6 +11,8 @@ All notable changes to this project are recorded here, newest first. The format 
   the same engine from a standalone install and changes no engine behaviour. Tests check that
   every command in it exists and that its install and forge steps work with no Hermes present.
   It has not been run inside Grok Bot itself.
+- `integrations/grok-bot/BOT.md`: a name, description and brief for a dedicated Grok Bot that
+  uses that skill, with notes on sharing it as a template.
 
 - The Noir `zk-knowledge` proof works with the current toolchain (nargo 1.0.0, bb 6.0.0):
   `nargo execute`, then `bb prove` and `bb verify`. It needs `bb` as well as `nargo` now.

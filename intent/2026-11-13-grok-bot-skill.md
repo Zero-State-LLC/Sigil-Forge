@@ -15,6 +15,10 @@ Bot install the engine with `install.sh --standalone`, forge and verify a
 wallpaper, and keep the same refusals and private files as the Hermes
 contract. No engine behaviour changes.
 
+Added the same day at the owner's request: `BOT.md`, a brief to paste when
+creating a dedicated Bot. Grok Bot has no importable Bot file, so this is
+text for a person to paste; publishing a template stays with the owner.
+
 Out of scope: a plugin or adapter layer, a second engine entry point, a
 routine or trigger, any change to `SKILL.md`, and publishing to a Grok Bot
 marketplace.
