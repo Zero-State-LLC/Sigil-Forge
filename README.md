@@ -359,15 +359,30 @@ python3 scripts/sigil_forge.py storyboard \
 
 Every intent passes the same safety and authority-seal checks as `construct` before anything
 is forged; one refusal fails the whole board and writes nothing. Each frame is an ordinary run
-dir. The index `storyboards/storyboard-<board_id>.json` holds digests and roots only (no intent
-text). `board_id` hashes the ordered digests, so order matters. File frames come before
+dir. Two files tie the frames together, both without intent text:
+
+- `storyboards/storyboard-<board_id>.json`, the index: digests and roots only.
+- `storyboards/storyboard-<board_id>.svg`, the sheet: one SVG that embeds every frame's glyph
+  byte for byte, in order. It is safe to share and carries the whole board.
+
+`board_id` hashes the ordered digests, so order matters. `board_root` commits to the ordered
+frames (digest, root and glyph bytes), so a reordered, swapped or edited frame changes it.
+
+```bash
+python3 scripts/sigil_forge.py storyboard-verify <out>/storyboards/storyboard-<board_id>.svg   # the sheet alone
+python3 scripts/sigil_forge.py storyboard-verify <out>/storyboards/storyboard-<board_id>.json  # index + run folders + sheet
+```
+
+`storyboard-verify` proves the frames belong together and are unchanged. It does not prove who
+made the board: anyone can build a new, self-consistent board from their own frames. File frames come before
 `--intent` frames. Options: `--out`, `--passphrase` (prefer env), `--seal-packet`.
 
 ## CLI overview
 
 ```text
 construct     Forge multi-channel sigil + packet (+ optional --proof)
-storyboard    One forge run per intent (1-12) + digest-only index
+storyboard    One forge run per intent (1-12) + digest-only index + sheet
+storyboard-verify  Check a board from its index or its sheet
 verify        Recover intent digest (+ sigil_root when SF11)
 inspect       Public carrier inspection (digest/root; no plaintext)
 png-stats     LSB-plane statistics of a PNG (descriptive; not a detector)

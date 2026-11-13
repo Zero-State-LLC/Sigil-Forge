@@ -1,16 +1,28 @@
-"""Storyboard: an ordered set of ordinary forge runs plus a public index.
+"""Storyboard: an ordered set of ordinary forge runs, an index, and a sheet.
 
-Each intent ("frame") is forged by ``construct.run`` unchanged. The index
-(``<out_root>/storyboards/storyboard-<board_id>.json``) ties the runs together
-and holds public digests only: no plaintext intent, no normalized intent, no
-commitment nonce, no passphrase.
+Each intent ("frame") is forged by ``construct.run`` unchanged. Two files tie
+the runs together, both under ``<out_root>/storyboards/``:
+
+- ``storyboard-<board_id>.json``, the index: public digests only.
+- ``storyboard-<board_id>.svg``, the sheet: one SVG that embeds every frame's
+  ``glyph.svg`` byte for byte, in order. It is a carrier for the whole board:
+  each embedded glyph still holds its own digest and root, so the board can
+  be checked from the sheet alone, without the run folders or the index.
+
+Neither file holds plaintext intent, normalized intent, a commitment nonce or
+a passphrase. ``board_root`` commits to the ordered frames (digest, root and
+glyph bytes), so reordering, swapping or editing a frame changes it.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+import math
+import re
 import shutil
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -29,6 +41,22 @@ from sigil_forge.safety import check_intent
 SCHEMA = "sigil-forge-storyboard/1"
 MIN_FRAMES = 1
 MAX_FRAMES = 12
+ROOT_DOMAIN = "sigil-forge-storyboard-root/1"
+SHEET_VERSION = 1
+SHEET_CELL = 100  # one frame's square, in sheet units
+SHEET_GAP = 6
+SHEET_MAX_COLUMNS = 4
+# Limits for reading a sheet or index someone else may have written.
+MAX_SHEET_BYTES = 8 * 1024 * 1024
+MAX_FRAME_SVG_BYTES = 512 * 1024
+MAX_INDEX_BYTES = 256 * 1024
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+_HEX16 = re.compile(r"[0-9a-f]{16}")
+_RUN_DIR = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+_BOARD_META = re.compile(r"<sf:board>([A-Za-z0-9+/=]{1,65536})</sf:board>")
+_FRAME_IMAGE = re.compile(
+    r'<image data-sf-frame="(\d{1,2})" [^<>]*?href="data:image/svg\+xml;base64,([A-Za-z0-9+/=]+)"/>'
+)
 
 
 class StoryboardUsageError(ValueError):
@@ -64,6 +92,65 @@ def _precheck(intents: list[str]) -> None:
                 f"frame {i}: duplicates frame {seen[norm]} (same intent twice)"
             )
         seen[norm] = i
+
+
+def board_id_for(intent_digests: list[str]) -> str:
+    """Board id: hash of the ordered intent digests (order matters)."""
+    return hashlib.sha256("\n".join(intent_digests).encode("utf-8")).hexdigest()[:16]
+
+
+def board_root_for(frames: list[dict[str, Any]]) -> str:
+    """Commitment to the ordered frames: digest, root and exact glyph bytes."""
+    canon = [
+        [int(f["index"]), f["intent_digest"], f["sigil_root"], f["glyph_sha256"]] for f in frames
+    ]
+    blob = ROOT_DOMAIN + "\n" + json.dumps(canon, separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def build_sheet_svg(board_id: str, board_root: str, frames: list[dict[str, Any]], glyphs: list[bytes]) -> str:
+    """One SVG holding every frame's glyph, byte for byte, in a grid.
+
+    Each glyph is embedded as a base64 ``data:`` image, so its own stego
+    channels survive untouched and it can be taken back out and verified.
+    """
+    n = len(frames)
+    cols = min(SHEET_MAX_COLUMNS, math.ceil(math.sqrt(n)))
+    rows = math.ceil(n / cols)
+    step = SHEET_CELL + SHEET_GAP
+    width = cols * step + SHEET_GAP
+    height = rows * step + SHEET_GAP
+    meta = {
+        "v": SHEET_VERSION,
+        "board_id": board_id,
+        "board_root": board_root,
+        "frames": [
+            {"i": f["index"], "d": f["intent_digest"], "r": f["sigil_root"], "g": f["glyph_sha256"]}
+            for f in frames
+        ],
+    }
+    payload = base64.b64encode(
+        json.dumps(meta, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+    lines = [
+        '<svg xmlns:sf="https://sigil-forge.local/ns" xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {width} {height}" width="100%" height="100%">',
+        "  <metadata>",
+        f"    <sf:board>{payload}</sf:board>",
+        "  </metadata>",
+        f'  <rect x="0" y="0" width="{width}" height="{height}" fill="#f7f4ef"/>',
+    ]
+    for k, (frame, glyph) in enumerate(zip(frames, glyphs)):
+        x = SHEET_GAP + (k % cols) * step
+        y = SHEET_GAP + (k // cols) * step
+        data = base64.b64encode(glyph).decode("ascii")
+        lines.append(
+            f'  <image data-sf-frame="{frame["index"]}" x="{x}" y="{y}" '
+            f'width="{SHEET_CELL}" height="{SHEET_CELL}" '
+            f'href="data:image/svg+xml;base64,{data}"/>'
+        )
+    lines.append("</svg>")
+    return "\n".join(lines) + "\n"
 
 
 def _forge_version() -> str:
@@ -102,12 +189,16 @@ def build_storyboard(
     construct_kwargs.pop("out_root", None)
 
     created: list[Path] = []
+    written: list[Path] = []
+    glyphs: list[bytes] = []
     frames: list[dict[str, Any]] = []
     try:
         for i, intent in enumerate(intents, start=1):
             packet = construct.run(intent, out_root=root, **construct_kwargs)
             run_dir = Path(packet["artifacts"]["run_dir"])
             created.append(run_dir)
+            glyph = (run_dir / "glyph.svg").read_bytes()
+            glyphs.append(glyph)
             frames.append(
                 {
                     "index": i,
@@ -115,29 +206,256 @@ def build_storyboard(
                     "run_dir": run_dir.relative_to(root).as_posix(),
                     "intent_digest": packet["intent_digest"],
                     "sigil_root": packet.get("sigil_root"),
+                    "glyph_sha256": hashlib.sha256(glyph).hexdigest(),
                 }
             )
-        board_id = hashlib.sha256(
-            "\n".join(f["intent_digest"] for f in frames).encode("utf-8")
-        ).hexdigest()[:16]
-        index = {
-            "schema": SCHEMA,
-            "board_id": board_id,
-            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "forge_version": _forge_version(),
-            "frames": frames,
-        }
+        board_id = board_id_for([f["intent_digest"] for f in frames])
+        board_root = board_root_for(frames)
+        sheet = build_sheet_svg(board_id, board_root, frames, glyphs)
         sb_dir = root / "storyboards"
         if default_location:
             ensure_private_dir(sb_dir)
         else:
             sb_dir.mkdir(parents=True, exist_ok=True)
+        sheet_path = sb_dir / f"storyboard-{board_id}.svg"
         index_path = sb_dir / f"storyboard-{board_id}.json"
+        index = {
+            "schema": SCHEMA,
+            "board_id": board_id,
+            "board_root": board_root,
+            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "forge_version": _forge_version(),
+            "frames": frames,
+            "sheet": {
+                "path": sheet_path.name,
+                "sha256": hashlib.sha256(sheet.encode("utf-8")).hexdigest(),
+            },
+        }
+        written.append(sheet_path)
+        write_private_text(sheet_path, sheet)
+        written.append(index_path)
         write_private_text(
             index_path, json.dumps(index, indent=2, sort_keys=True) + "\n"
         )
     except BaseException:
         for d in created:
             shutil.rmtree(d, ignore_errors=True)
+        for f in written:
+            f.unlink(missing_ok=True)
         raise
-    return {**index, "index_path": str(index_path)}
+    return {**index, "index_path": str(index_path), "sheet_path": str(sheet_path)}
+
+
+# ---------------------------------------------------------------- verification
+
+
+def _result(source: Path, kind: str) -> dict[str, Any]:
+    return {
+        "ok": False,
+        "source": str(source),
+        "kind": kind,
+        "board_id": None,
+        "board_root": None,
+        "frame_count": 0,
+        "frames": [],
+        "detail": "",
+    }
+
+
+def _verify_glyph_bytes(glyph: bytes, work: Path, index: int) -> dict[str, Any]:
+    """Run the ordinary glyph verifier on embedded or on-disk glyph bytes."""
+    from sigil_forge.verify import run as verify_run
+
+    path = work / f"frame-{index:02d}.svg"
+    path.write_bytes(glyph)
+    got = verify_run(path)
+    return {
+        "index": index,
+        "ok": bool(got.get("ok")),
+        "intent_digest": got.get("intent_digest"),
+        "sigil_root": got.get("sigil_root"),
+        "glyph_sha256": hashlib.sha256(glyph).hexdigest(),
+    }
+
+
+def _check_board(out: dict[str, Any], frames: list[dict[str, Any]], claimed: dict[str, Any]) -> list[str]:
+    """Recompute id and root from verified frames and compare with what was claimed."""
+    problems = [f"frame {f['index']}: glyph does not verify" for f in frames if not f["ok"]]
+    if any(not f["intent_digest"] or not f["sigil_root"] for f in frames):
+        problems.append("a frame carries no digest or no root")
+        return problems
+    out["board_id"] = board_id_for([f["intent_digest"] for f in frames])
+    out["board_root"] = board_root_for(frames)
+    if claimed.get("board_id") != out["board_id"]:
+        problems.append("board_id does not match the frames")
+    if claimed.get("board_root") is not None and claimed["board_root"] != out["board_root"]:
+        problems.append("board_root does not match the frames")
+    return problems
+
+
+def verify_sheet(sheet_path: Path | str) -> dict[str, Any]:
+    """Check a storyboard sheet on its own: no index, no run folders needed."""
+    path = Path(sheet_path)
+    out = _result(path, "sheet")
+    try:
+        if path.stat().st_size > MAX_SHEET_BYTES:
+            out["detail"] = "sheet is larger than the limit"
+            return out
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        out["detail"] = f"cannot read sheet: {type(exc).__name__}"
+        return out
+
+    metas = _BOARD_META.findall(text)
+    images = _FRAME_IMAGE.findall(text)
+    if len(metas) != 1:
+        out["detail"] = "sheet must hold exactly one board record"
+        return out
+    if not (MIN_FRAMES <= len(images) <= MAX_FRAMES) or text.count("<image") != len(images):
+        out["detail"] = f"sheet must hold {MIN_FRAMES} to {MAX_FRAMES} well-formed frame images"
+        return out
+    try:
+        meta = json.loads(base64.b64decode(metas[0], validate=True))
+        claimed_frames = meta["frames"]
+        if meta.get("v") != SHEET_VERSION or not isinstance(claimed_frames, list):
+            raise ValueError("unsupported board record")
+        glyphs = []
+        for k, (number, data) in enumerate(images, start=1):
+            if int(number) != k:
+                raise ValueError("frames are not numbered in order")
+            if len(data) > MAX_FRAME_SVG_BYTES * 4 // 3 + 4:
+                raise ValueError("an embedded frame is larger than the limit")
+            glyphs.append(base64.b64decode(data, validate=True))
+    except (ValueError, KeyError, TypeError) as exc:
+        out["detail"] = f"malformed sheet: {exc}"
+        return out
+
+    with tempfile.TemporaryDirectory(prefix="sigil-forge-sheet-") as tmp:
+        frames = [_verify_glyph_bytes(g, Path(tmp), k) for k, g in enumerate(glyphs, start=1)]
+    out["frames"] = frames
+    out["frame_count"] = len(frames)
+    problems = _check_board(out, frames, meta if isinstance(meta, dict) else {})
+    if len(claimed_frames) != len(frames):
+        problems.append("board record lists a different number of frames")
+    else:
+        for f, c in zip(frames, claimed_frames):
+            if not isinstance(c, dict) or (c.get("i"), c.get("d"), c.get("r"), c.get("g")) != (
+                f["index"], f["intent_digest"], f["sigil_root"], f["glyph_sha256"],
+            ):
+                problems.append(f"frame {f['index']}: board record does not match the embedded glyph")
+    if meta.get("board_root") is None:
+        problems.append("board record has no board_root")
+    out["detail"] = "; ".join(problems) or "ok"
+    out["ok"] = not problems
+    return out
+
+
+def verify_index(index_path: Path | str) -> dict[str, Any]:
+    """Check a storyboard index against its run folders and, if present, its sheet.
+
+    The index is treated as untrusted input: run folders must be plain names
+    beside the ``storyboards`` folder, never absolute paths or ``..``.
+    """
+    path = Path(index_path)
+    out = _result(path, "index")
+    try:
+        if path.stat().st_size > MAX_INDEX_BYTES:
+            out["detail"] = "index is larger than the limit"
+            return out
+        index = json.loads(path.read_text(encoding="utf-8"))
+        listed = index["frames"]
+        if index.get("schema") != SCHEMA or not isinstance(listed, list):
+            raise ValueError("not a storyboard index")
+        if not (MIN_FRAMES <= len(listed) <= MAX_FRAMES):
+            raise ValueError("frame count out of range")
+        for k, f in enumerate(listed, start=1):
+            if not isinstance(f, dict) or f.get("index") != k:
+                raise ValueError("frames are not numbered in order")
+            if not isinstance(f.get("run_dir"), str) or not _RUN_DIR.fullmatch(f["run_dir"]):
+                raise ValueError(f"frame {k}: run_dir is not a plain folder name")
+            for key in ("intent_digest", "sigil_root"):
+                if not isinstance(f.get(key), str) or not _HEX64.fullmatch(f[key]):
+                    raise ValueError(f"frame {k}: {key} is not a digest")
+        if not isinstance(index.get("board_id"), str) or not _HEX16.fullmatch(index["board_id"]):
+            raise ValueError("board_id is malformed")
+    except (OSError, UnicodeDecodeError) as exc:
+        out["detail"] = f"cannot read index: {type(exc).__name__}"
+        return out
+    except (ValueError, KeyError, TypeError) as exc:
+        out["detail"] = f"malformed index: {exc}"
+        return out
+
+    root = path.resolve().parent.parent
+    problems: list[str] = []
+    frames: list[dict[str, Any]] = []
+    with tempfile.TemporaryDirectory(prefix="sigil-forge-board-") as tmp:
+        for f in listed:
+            k = f["index"]
+            glyph_path = root / f["run_dir"] / "glyph.svg"
+            try:
+                if glyph_path.is_symlink() or (root / f["run_dir"]).is_symlink():
+                    raise OSError("symlink")
+                if glyph_path.stat().st_size > MAX_FRAME_SVG_BYTES:
+                    raise OSError("too large")
+                glyph = glyph_path.read_bytes()
+            except OSError:
+                problems.append(f"frame {k}: glyph.svg is missing or unreadable")
+                frames.append({"index": k, "ok": False, "intent_digest": None,
+                               "sigil_root": None, "glyph_sha256": None})
+                continue
+            got = _verify_glyph_bytes(glyph, Path(tmp), k)
+            frames.append(got)
+            for key in ("intent_digest", "sigil_root"):
+                if got[key] != f[key]:
+                    problems.append(f"frame {k}: {key} differs from the index")
+            if f.get("glyph_sha256") is not None and got["glyph_sha256"] != f["glyph_sha256"]:
+                problems.append(f"frame {k}: glyph.svg changed since the index was written")
+    out["frames"] = frames
+    out["frame_count"] = len(frames)
+    if not any(f["intent_digest"] is None for f in frames):
+        problems += _check_board(out, frames, index)
+    legacy = index.get("board_root") is None
+    out["legacy_index"] = legacy
+    sheet = index.get("sheet")
+    if isinstance(sheet, dict):
+        name = sheet.get("path")
+        if not isinstance(name, str) or name != f"storyboard-{index['board_id']}.svg":
+            problems.append("index names an unexpected sheet file")
+        else:
+            sheet_path = path.parent / name
+            try:
+                if sheet_path.is_symlink():
+                    raise OSError("symlink")
+                if sheet_path.stat().st_size > MAX_SHEET_BYTES:
+                    raise OSError("too large")
+                actual = hashlib.sha256(sheet_path.read_bytes()).hexdigest()
+            except OSError:
+                problems.append("sheet is missing or unreadable")
+            else:
+                if actual != sheet.get("sha256"):
+                    problems.append("sheet changed since the index was written")
+                got_sheet = verify_sheet(sheet_path)
+                if not got_sheet["ok"]:
+                    problems.append(f"sheet does not verify: {got_sheet['detail']}")
+                elif got_sheet["board_root"] != out["board_root"]:
+                    problems.append("sheet and run folders disagree on board_root")
+    elif not legacy:
+        problems.append("index has a board_root but names no sheet")
+    out["detail"] = "; ".join(problems) or (
+        "ok (index written before board_root existed: frames checked, no root to compare)"
+        if legacy else "ok"
+    )
+    out["ok"] = not problems
+    return out
+
+
+def verify_storyboard(path: Path | str) -> dict[str, Any]:
+    """Verify a storyboard from its index (``.json``) or its sheet (``.svg``)."""
+    p = Path(path)
+    if not p.is_file():
+        out = _result(p, "unknown")
+        out["detail"] = "file not found"
+        return out
+    if p.suffix.lower() == ".svg":
+        return verify_sheet(p)
+    return verify_index(p)

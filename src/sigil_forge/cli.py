@@ -11,7 +11,7 @@ from pathlib import Path
 def cmd_help(_: argparse.Namespace) -> int:
     print(
         "sigil-forge — multi-channel intent sigils (Hermes skill)\n"
-        "commands: construct | storyboard | verify | verify-proof | inspect | png-stats | wallpaper | wizard | open | learn | ledger | "
+        "commands: construct | storyboard | storyboard-verify | verify | verify-proof | inspect | png-stats | wallpaper | wizard | open | learn | ledger | "
         "policy | doctor | eval | check | help\n"
         "Product: wallpaper PNG with SF12 sealed vault (intent + methods in-image).\n"
         "See SKILL.md, QUICKSTART.md, references/hermes-runtime-contract.md\n"
@@ -424,7 +424,9 @@ def cmd_storyboard(args: argparse.Namespace) -> int:
             {
                 "ok": True,
                 "board_id": board["board_id"],
+                "board_root": board["board_root"],
                 "index_path": board["index_path"],
+                "sheet_path": board["sheet_path"],
                 "frames": board["frames"],
             },
             indent=2,
@@ -432,6 +434,15 @@ def cmd_storyboard(args: argparse.Namespace) -> int:
         )
     )
     return 0
+
+
+def cmd_storyboard_verify(args: argparse.Namespace) -> int:
+    """Check a storyboard from its index (.json) or its sheet (.svg)."""
+    from sigil_forge.storyboard import verify_storyboard
+
+    result = verify_storyboard(args.path)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result.get("ok") else 1
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
@@ -1786,6 +1797,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Omit plaintext intent from each packet (requires a passphrase)",
     )
 
+    psv = sub.add_parser(
+        "storyboard-verify",
+        help="Verify a storyboard from its index (.json) or its sheet (.svg)",
+    )
+    psv.add_argument("path", help="storyboards/storyboard-<board_id>.json or .svg")
+
     pw = sub.add_parser(
         "wallpaper",
         help="Compose wallpapers from a forge run (canonical glyph + atmosphere)",
@@ -1801,6 +1818,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_construct(args)
     if args.cmd == "storyboard":
         return cmd_storyboard(args)
+    if args.cmd == "storyboard-verify":
+        return cmd_storyboard_verify(args)
     if args.cmd == "verify":
         return cmd_verify(args)
     if args.cmd == "inspect":

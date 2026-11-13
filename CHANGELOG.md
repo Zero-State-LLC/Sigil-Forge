@@ -5,6 +5,16 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+### Added
+
+- Storyboard sheet: `storyboard` now also writes `storyboards/storyboard-<board_id>.svg`, one
+  SVG that embeds every frame's glyph byte for byte, in order. It carries the whole board: the
+  board can be checked from the sheet alone.
+- `board_root` in the storyboard index and sheet: a commitment to the ordered frames (digest,
+  root and glyph bytes). Frames in the index also record `glyph_sha256`.
+- `storyboard-verify PATH` checks a board from its index (`.json`) or its sheet (`.svg`). An
+  index written before `board_root` existed still verifies, and the result says so.
+
 ## 0.16.0 - 2026-11-13
 
 Tags `v0.13.1`, `v0.15.0` and `v0.16.0` were added with this release; the two earlier releases
