@@ -24,5 +24,8 @@ is repeated in a few docs, so never edit those by hand.
    and `git push origin vX.Y.Z`. The Grok Bot skill installs that tag, so a
    release is not finished until the tag exists.
 
+6. Publish the release page from that changelog section:
+   `gh release create vX.Y.Z --verify-tag --title "Sigil-Forge X.Y.Z" --notes-file <notes>`.
+
 Use MAJOR.MINOR.PATCH. Before 1.0, a change in behaviour or a new feature
 raises MINOR; a fix alone raises PATCH.
