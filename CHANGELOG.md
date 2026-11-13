@@ -14,6 +14,13 @@ All notable changes to this project are recorded here, newest first. The format 
   root and glyph bytes). Frames in the index also record `glyph_sha256`.
 - `storyboard-verify PATH` checks a board from its index (`.json`) or its sheet (`.svg`). An
   index written before `board_root` existed still verifies, and the result says so.
+  `--expect-root` ties the check to a root obtained through a trusted channel; without it the
+  check proves consistency only.
+
+### Fixed
+
+- A failed `storyboard` rebuild no longer removes a board or run folders that were already
+  there. Rollback now restores the earlier index and removes only what the call created.
 
 ## 0.16.0 - 2026-11-13
 

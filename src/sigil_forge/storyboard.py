@@ -20,8 +20,10 @@ import base64
 import hashlib
 import json
 import math
+import os
 import re
 import shutil
+import stat
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -188,15 +190,21 @@ def build_storyboard(
         default_location = False
     construct_kwargs.pop("out_root", None)
 
+    # Run folders already here are never removed by rollback, even if a run in
+    # the same clock second reuses one's name.
+    existed_before = {p.name for p in root.iterdir() if p.is_dir()}
     created: list[Path] = []
-    written: list[Path] = []
+    # path -> what was there before this call (None: nothing), for rollback
+    previous: dict[Path, bytes | None] = {}
+    made_sb_dir: Path | None = None
     glyphs: list[bytes] = []
     frames: list[dict[str, Any]] = []
     try:
         for i, intent in enumerate(intents, start=1):
             packet = construct.run(intent, out_root=root, **construct_kwargs)
             run_dir = Path(packet["artifacts"]["run_dir"])
-            created.append(run_dir)
+            if run_dir.name not in existed_before:
+                created.append(run_dir)
             glyph = (run_dir / "glyph.svg").read_bytes()
             glyphs.append(glyph)
             frames.append(
@@ -213,6 +221,8 @@ def build_storyboard(
         board_root = board_root_for(frames)
         sheet = build_sheet_svg(board_id, board_root, frames, glyphs)
         sb_dir = root / "storyboards"
+        if not sb_dir.exists():
+            made_sb_dir = sb_dir
         if default_location:
             ensure_private_dir(sb_dir)
         else:
@@ -231,22 +241,73 @@ def build_storyboard(
                 "sha256": hashlib.sha256(sheet.encode("utf-8")).hexdigest(),
             },
         }
-        written.append(sheet_path)
+        # Re-running the same intents replaces that board's two files. Keep
+        # what was there so a failure puts the earlier board back intact.
+        for target in (sheet_path, index_path):
+            previous[target] = target.read_bytes() if target.is_file() else None
         write_private_text(sheet_path, sheet)
-        written.append(index_path)
         write_private_text(
             index_path, json.dumps(index, indent=2, sort_keys=True) + "\n"
         )
     except BaseException:
         for d in created:
             shutil.rmtree(d, ignore_errors=True)
-        for f in written:
-            f.unlink(missing_ok=True)
+        for target, before in previous.items():
+            try:
+                if before is None:
+                    target.unlink(missing_ok=True)
+                else:
+                    write_private_text(target, before.decode("utf-8"))
+            except OSError:
+                pass
+        if made_sb_dir is not None:
+            try:
+                made_sb_dir.rmdir()  # only if this call made it and it is empty
+            except OSError:
+                pass
         raise
     return {**index, "index_path": str(index_path), "sheet_path": str(sheet_path)}
 
 
 # ---------------------------------------------------------------- verification
+
+
+def _read_regular(path: Path, limit: int) -> bytes:
+    """Read at most ``limit`` bytes of a regular file, without following a link.
+
+    Refuses symlinks, FIFOs, devices and anything larger than ``limit``. The
+    checks are made on the opened file, so nothing can be swapped in between
+    the check and the read, and a FIFO cannot block the caller.
+    """
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
+    if path.is_symlink():
+        raise OSError("symlink")
+    fd = os.open(path, flags)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise OSError("not a regular file")
+        if info.st_size > limit:
+            raise OSError("larger than the limit")
+        chunks, total = [], 0
+        while total <= limit:
+            chunk = os.read(fd, min(1 << 16, limit + 1 - total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+        if total > limit:
+            raise OSError("larger than the limit")
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
+
+
+def _why(exc: Exception) -> str:
+    """Our own refusal text, or just the error's class: never a path or file content."""
+    if isinstance(exc, OSError) and exc.errno is None and exc.args:
+        return str(exc.args[0])
+    return type(exc).__name__
 
 
 def _result(source: Path, kind: str) -> dict[str, Any]:
@@ -256,6 +317,7 @@ def _result(source: Path, kind: str) -> dict[str, Any]:
         "kind": kind,
         "board_id": None,
         "board_root": None,
+        "anchored": False,
         "frame_count": 0,
         "frames": [],
         "detail": "",
@@ -266,9 +328,13 @@ def _verify_glyph_bytes(glyph: bytes, work: Path, index: int) -> dict[str, Any]:
     """Run the ordinary glyph verifier on embedded or on-disk glyph bytes."""
     from sigil_forge.verify import run as verify_run
 
-    path = work / f"frame-{index:02d}.svg"
+    path = work / f"frame-{int(index):02d}.svg"
     path.write_bytes(glyph)
-    got = verify_run(path)
+    try:
+        got = verify_run(path)
+    except (ValueError, OSError, KeyError, TypeError):
+        # Not UTF-8, not SVG, or otherwise unreadable as a glyph.
+        got = {}
     return {
         "index": index,
         "ok": bool(got.get("ok")),
@@ -284,7 +350,10 @@ def _check_board(out: dict[str, Any], frames: list[dict[str, Any]], claimed: dic
     if any(not f["intent_digest"] or not f["sigil_root"] for f in frames):
         problems.append("a frame carries no digest or no root")
         return problems
-    out["board_id"] = board_id_for([f["intent_digest"] for f in frames])
+    digests = [f["intent_digest"] for f in frames]
+    if len(set(digests)) != len(digests):
+        problems.append("the same frame appears twice")
+    out["board_id"] = board_id_for(digests)
     out["board_root"] = board_root_for(frames)
     if claimed.get("board_id") != out["board_id"]:
         problems.append("board_id does not match the frames")
@@ -293,17 +362,32 @@ def _check_board(out: dict[str, Any], frames: list[dict[str, Any]], claimed: dic
     return problems
 
 
-def verify_sheet(sheet_path: Path | str) -> dict[str, Any]:
-    """Check a storyboard sheet on its own: no index, no run folders needed."""
+def _check_expected(out: dict[str, Any], expected_root: str | None) -> list[str]:
+    """Compare with a root the caller got from somewhere they trust."""
+    if expected_root is None:
+        return []
+    if not isinstance(expected_root, str) or not _HEX64.fullmatch(expected_root.lower()):
+        return ["expected root is not 64 hex characters"]
+    if out["board_root"] != expected_root.lower():
+        return ["board_root is not the expected root"]
+    out["anchored"] = True
+    return []
+
+
+def verify_sheet(sheet_path: Path | str, *, expected_root: str | None = None) -> dict[str, Any]:
+    """Check a storyboard sheet on its own: no index, no run folders needed.
+
+    A sheet must be exactly what ``build_sheet_svg`` writes for its frames.
+    Anything else in the file (a comment hiding the frames, an extra image
+    drawn over them, a script) makes it differ and fails, so what a viewer
+    shows is what was checked.
+    """
     path = Path(sheet_path)
     out = _result(path, "sheet")
     try:
-        if path.stat().st_size > MAX_SHEET_BYTES:
-            out["detail"] = "sheet is larger than the limit"
-            return out
-        text = path.read_text(encoding="utf-8")
+        text = _read_regular(path, MAX_SHEET_BYTES).decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
-        out["detail"] = f"cannot read sheet: {type(exc).__name__}"
+        out["detail"] = f"cannot read sheet: {_why(exc)}"
         return out
 
     metas = _BOARD_META.findall(text)
@@ -317,7 +401,9 @@ def verify_sheet(sheet_path: Path | str) -> dict[str, Any]:
     try:
         meta = json.loads(base64.b64decode(metas[0], validate=True))
         claimed_frames = meta["frames"]
-        if meta.get("v") != SHEET_VERSION or not isinstance(claimed_frames, list):
+        if not isinstance(meta, dict) or meta.get("v") != SHEET_VERSION:
+            raise ValueError("unsupported board record")
+        if not isinstance(claimed_frames, list):
             raise ValueError("unsupported board record")
         glyphs = []
         for k, (number, data) in enumerate(images, start=1):
@@ -334,7 +420,7 @@ def verify_sheet(sheet_path: Path | str) -> dict[str, Any]:
         frames = [_verify_glyph_bytes(g, Path(tmp), k) for k, g in enumerate(glyphs, start=1)]
     out["frames"] = frames
     out["frame_count"] = len(frames)
-    problems = _check_board(out, frames, meta if isinstance(meta, dict) else {})
+    problems = _check_board(out, frames, meta)
     if len(claimed_frames) != len(frames):
         problems.append("board record lists a different number of frames")
     else:
@@ -345,12 +431,18 @@ def verify_sheet(sheet_path: Path | str) -> dict[str, Any]:
                 problems.append(f"frame {f['index']}: board record does not match the embedded glyph")
     if meta.get("board_root") is None:
         problems.append("board record has no board_root")
+    if not problems:
+        canonical = build_sheet_svg(out["board_id"], out["board_root"], frames, glyphs)
+        if text != canonical:
+            problems.append("sheet holds content beyond its frames and record")
+    if not problems:
+        problems += _check_expected(out, expected_root)
     out["detail"] = "; ".join(problems) or "ok"
     out["ok"] = not problems
     return out
 
 
-def verify_index(index_path: Path | str) -> dict[str, Any]:
+def verify_index(index_path: Path | str, *, expected_root: str | None = None) -> dict[str, Any]:
     """Check a storyboard index against its run folders and, if present, its sheet.
 
     The index is treated as untrusted input: run folders must be plain names
@@ -359,17 +451,17 @@ def verify_index(index_path: Path | str) -> dict[str, Any]:
     path = Path(index_path)
     out = _result(path, "index")
     try:
-        if path.stat().st_size > MAX_INDEX_BYTES:
-            out["detail"] = "index is larger than the limit"
-            return out
-        index = json.loads(path.read_text(encoding="utf-8"))
+        index = json.loads(_read_regular(path, MAX_INDEX_BYTES).decode("utf-8"))
+        if not isinstance(index, dict):
+            raise ValueError("not a storyboard index")
         listed = index["frames"]
         if index.get("schema") != SCHEMA or not isinstance(listed, list):
             raise ValueError("not a storyboard index")
         if not (MIN_FRAMES <= len(listed) <= MAX_FRAMES):
             raise ValueError("frame count out of range")
         for k, f in enumerate(listed, start=1):
-            if not isinstance(f, dict) or f.get("index") != k:
+            # ``type(...) is int``: 1.0 and True both equal 1 and must not pass.
+            if not isinstance(f, dict) or type(f.get("index")) is not int or f["index"] != k:
                 raise ValueError("frames are not numbered in order")
             if not isinstance(f.get("run_dir"), str) or not _RUN_DIR.fullmatch(f["run_dir"]):
                 raise ValueError(f"frame {k}: run_dir is not a plain folder name")
@@ -379,9 +471,9 @@ def verify_index(index_path: Path | str) -> dict[str, Any]:
         if not isinstance(index.get("board_id"), str) or not _HEX16.fullmatch(index["board_id"]):
             raise ValueError("board_id is malformed")
     except (OSError, UnicodeDecodeError) as exc:
-        out["detail"] = f"cannot read index: {type(exc).__name__}"
+        out["detail"] = f"cannot read index: {_why(exc)}"
         return out
-    except (ValueError, KeyError, TypeError) as exc:
+    except (ValueError, KeyError, TypeError, RecursionError) as exc:
         out["detail"] = f"malformed index: {exc}"
         return out
 
@@ -393,11 +485,9 @@ def verify_index(index_path: Path | str) -> dict[str, Any]:
             k = f["index"]
             glyph_path = root / f["run_dir"] / "glyph.svg"
             try:
-                if glyph_path.is_symlink() or (root / f["run_dir"]).is_symlink():
+                if (root / f["run_dir"]).is_symlink():
                     raise OSError("symlink")
-                if glyph_path.stat().st_size > MAX_FRAME_SVG_BYTES:
-                    raise OSError("too large")
-                glyph = glyph_path.read_bytes()
+                glyph = _read_regular(glyph_path, MAX_FRAME_SVG_BYTES)
             except OSError:
                 problems.append(f"frame {k}: glyph.svg is missing or unreadable")
                 frames.append({"index": k, "ok": False, "intent_digest": None,
@@ -424,11 +514,7 @@ def verify_index(index_path: Path | str) -> dict[str, Any]:
         else:
             sheet_path = path.parent / name
             try:
-                if sheet_path.is_symlink():
-                    raise OSError("symlink")
-                if sheet_path.stat().st_size > MAX_SHEET_BYTES:
-                    raise OSError("too large")
-                actual = hashlib.sha256(sheet_path.read_bytes()).hexdigest()
+                actual = hashlib.sha256(_read_regular(sheet_path, MAX_SHEET_BYTES)).hexdigest()
             except OSError:
                 problems.append("sheet is missing or unreadable")
             else:
@@ -439,8 +525,14 @@ def verify_index(index_path: Path | str) -> dict[str, Any]:
                     problems.append(f"sheet does not verify: {got_sheet['detail']}")
                 elif got_sheet["board_root"] != out["board_root"]:
                     problems.append("sheet and run folders disagree on board_root")
+    elif sheet is not None:
+        problems.append("index names an unexpected sheet file")
     elif not legacy:
         problems.append("index has a board_root but names no sheet")
+    if legacy and expected_root is not None:
+        problems.append("index has no board_root, so it cannot match an expected root")
+    elif not problems:
+        problems += _check_expected(out, expected_root)
     out["detail"] = "; ".join(problems) or (
         "ok (index written before board_root existed: frames checked, no root to compare)"
         if legacy else "ok"
@@ -449,13 +541,27 @@ def verify_index(index_path: Path | str) -> dict[str, Any]:
     return out
 
 
-def verify_storyboard(path: Path | str) -> dict[str, Any]:
-    """Verify a storyboard from its index (``.json``) or its sheet (``.svg``)."""
+def verify_storyboard(path: Path | str, *, expected_root: str | None = None) -> dict[str, Any]:
+    """Verify a storyboard from its index (``.json``) or its sheet (``.svg``).
+
+    Without ``expected_root`` this proves the board is internally consistent:
+    its frames belong together and are unchanged since it was written. It does
+    not prove it is the board a particular person made, because anyone can
+    build a new consistent board. Pass the ``board_root`` you were given
+    through a channel you trust to prove that; the result then has
+    ``anchored: true``.
+    """
     p = Path(path)
-    if not p.is_file():
+    if not p.exists():
         out = _result(p, "unknown")
         out["detail"] = "file not found"
         return out
-    if p.suffix.lower() == ".svg":
-        return verify_sheet(p)
-    return verify_index(p)
+    is_sheet = p.suffix.lower() == ".svg"
+    try:
+        if is_sheet:
+            return verify_sheet(p, expected_root=expected_root)
+        return verify_index(p, expected_root=expected_root)
+    except Exception as exc:  # noqa: BLE001 - untrusted input must never crash the verifier
+        out = _result(p, "sheet" if is_sheet else "index")
+        out["detail"] = f"verification error: {type(exc).__name__}"
+        return out

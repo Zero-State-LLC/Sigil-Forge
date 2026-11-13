@@ -440,7 +440,7 @@ def cmd_storyboard_verify(args: argparse.Namespace) -> int:
     """Check a storyboard from its index (.json) or its sheet (.svg)."""
     from sigil_forge.storyboard import verify_storyboard
 
-    result = verify_storyboard(args.path)
+    result = verify_storyboard(args.path, expected_root=args.expect_root)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("ok") else 1
 
@@ -1802,6 +1802,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Verify a storyboard from its index (.json) or its sheet (.svg)",
     )
     psv.add_argument("path", help="storyboards/storyboard-<board_id>.json or .svg")
+    psv.add_argument(
+        "--expect-root",
+        default=None,
+        help="board_root you were given through a trusted channel; without it the "
+        "check proves the board is consistent, not that it is a particular board",
+    )
 
     pw = sub.add_parser(
         "wallpaper",

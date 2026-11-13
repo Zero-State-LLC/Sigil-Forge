@@ -396,7 +396,7 @@ def test_a_sheet_with_an_altered_glyph_does_not_verify(board, tmp_path):
 
 
 def test_a_frame_from_another_board_cannot_be_swapped_in(board, tmp_path):
-    """Even with the record rewritten to match, the root no longer matches the original."""
+    """The record still describes the original frame, so the swap is caught."""
     root, built = board
     other = build_storyboard(["I keep my promises to myself"], out_root=tmp_path / "other")
     foreign = (tmp_path / "other" / other["frames"][0]["run_dir"] / "glyph.svg").read_bytes()
@@ -525,4 +525,235 @@ def test_cli_storyboard_verify_exit_codes(board, tmp_path):
     _, _, sheet = _copy_board(board, tmp_path)
     _edit(sheet, _swap_first_two_images)
     bad = subprocess.run([*CLI, "storyboard-verify", str(sheet)], capture_output=True, text=True)
+    assert bad.returncode == 1 and json.loads(bad.stdout)["ok"] is False
+
+
+# ------------------------------------------------ findings from review of #43
+
+
+def test_failed_rebuild_keeps_the_earlier_board(tmp_path, monkeypatch):
+    """Rebuilding the same intents must not destroy the board that was there."""
+    first = build_storyboard([A, B], out_root=tmp_path)
+    index, sheet = Path(first["index_path"]), Path(first["sheet_path"])
+    before = (index.read_bytes(), sheet.read_bytes())
+    runs_before = sorted(p.name for p in tmp_path.iterdir())
+    real = sb.write_private_text
+
+    def fail_on_index(path, text):
+        if Path(path).suffix == ".json":
+            raise OSError("disk full")
+        return real(path, text)
+
+    # Run ids carry a one-second timestamp; wait so the rebuild gets new ones,
+    # as any real rebuild would.
+    import time
+
+    time.sleep(1.1)
+    monkeypatch.setattr(sb, "write_private_text", fail_on_index)
+    with pytest.raises(OSError):
+        build_storyboard([A, B], out_root=tmp_path)
+    monkeypatch.undo()
+
+    assert (index.read_bytes(), sheet.read_bytes()) == before
+    assert sorted(p.name for p in tmp_path.iterdir()) == runs_before
+    assert verify_index(index)["ok"] is True
+
+
+def test_rollback_never_removes_a_run_folder_that_was_already_there(tmp_path, monkeypatch):
+    """A rebuild in the same clock second reuses run folder names."""
+    first = build_storyboard([A, B], out_root=tmp_path)
+    names = sorted(f["run_dir"] for f in first["frames"])
+    real = construct.run
+
+    def same_ids_then_fail(intent, **kw):
+        if intent == B:
+            raise RuntimeError("simulated failure on frame 2")
+        packet = real(intent, **kw)
+        return packet
+
+    monkeypatch.setattr(construct, "run", same_ids_then_fail)
+    with pytest.raises(RuntimeError):
+        build_storyboard([A, B], out_root=tmp_path)
+    for name in names:
+        assert (tmp_path / name).is_dir(), name
+
+
+def test_failed_first_build_removes_the_folder_it_made(tmp_path, monkeypatch):
+    monkeypatch.setattr(sb, "write_private_text", lambda *a: (_ for _ in ()).throw(OSError("no")))
+    with pytest.raises(OSError):
+        build_storyboard([A, B], out_root=tmp_path)
+    assert not (tmp_path / "storyboards").exists()
+    assert _empty(tmp_path)
+
+
+def _sheet_with(board, tmp_path, edit) -> Path:
+    _, _, sheet = _copy_board(board, tmp_path)
+    _edit(sheet, edit)
+    return sheet
+
+
+@pytest.mark.parametrize(
+    "smuggle",
+    [
+        # every real frame hidden in a comment: nothing renders
+        lambda t: re.sub(r"(  <image data-sf-frame[^\n]*\n)+", lambda m: "<!--\n" + m.group(0) + "-->\n", t, count=1),
+        # a prefixed image drawn over the sheet
+        lambda t: t.replace("</svg>", '<svg:image xmlns:svg="http://www.w3.org/2000/svg" href="x.png" width="500" height="500"/></svg>'),
+        lambda t: t.replace("</svg>", "<script>alert(1)</script></svg>"),
+        lambda t: t.replace("  <metadata>", "  <!-- note -->\n  <metadata>"),
+        lambda t: t.replace('fill="#f7f4ef"/>\n  <image', 'fill="#000000"/>\n  <image', 1),
+        lambda t: t + "\n",
+        lambda t: t.replace(' x="6" y="6"', ' x="600" y="600"', 1),
+    ],
+)
+def test_a_sheet_with_anything_extra_does_not_verify(board, tmp_path, smuggle):
+    """What a viewer shows must be exactly what was checked."""
+    sheet = _sheet_with(board, tmp_path, smuggle)
+    assert sheet.read_text(encoding="utf-8") != Path(board[1]["sheet_path"]).read_text(encoding="utf-8")
+    got = verify_sheet(sheet)
+    assert got["ok"] is False, got["detail"]
+
+
+def test_non_utf8_and_non_svg_frames_fail_without_raising(board, tmp_path):
+    dest, index, sheet = _copy_board(board, tmp_path)
+    text = sheet.read_text(encoding="utf-8")
+    data = sb._FRAME_IMAGE.findall(text)[0][1]
+    sheet.write_text(text.replace(data, base64.b64encode(b"\xff\xfe<<<").decode()), encoding="utf-8")
+    assert verify_storyboard(sheet)["ok"] is False
+    first = json.loads(index.read_text(encoding="utf-8"))["frames"][0]["run_dir"]
+    (dest / first / "glyph.svg").write_bytes(b"\xff\xfe")
+    got = verify_storyboard(index)
+    assert got["ok"] is False and "frame 1" in got["detail"]
+
+
+@pytest.mark.parametrize("value", [1.0, True, "1", None, [1]])
+def test_index_frame_number_must_be_a_real_integer(board, tmp_path, value):
+    _, index, _ = _copy_board(board, tmp_path)
+    data = json.loads(index.read_text(encoding="utf-8"))
+    data["frames"][0]["index"] = value
+    index.write_text(json.dumps(data), encoding="utf-8")
+    got = verify_storyboard(index)
+    assert got["ok"] is False and "malformed index" in got["detail"]
+
+
+@pytest.mark.parametrize("junk", ["[]", "7", "null", '"x"', '{"frames": 3}', '{"schema": 1, "frames": {}}'])
+def test_wrong_json_shapes_fail_without_raising(tmp_path, junk):
+    path = tmp_path / "storyboard-x.json"
+    path.write_text(junk, encoding="utf-8")
+    assert verify_storyboard(path)["ok"] is False
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs FIFOs")
+def test_a_fifo_is_refused_instead_of_blocking(board, tmp_path):
+    import threading
+
+    dest, index, sheet = _copy_board(board, tmp_path)
+    first = json.loads(index.read_text(encoding="utf-8"))["frames"][0]["run_dir"]
+    glyph = dest / first / "glyph.svg"
+    glyph.unlink()
+    os.mkfifo(glyph)
+    lone = tmp_path / "lone.svg"
+    os.mkfifo(lone)
+
+    results: dict[str, dict] = {}
+
+    def work():
+        results["index"] = verify_storyboard(index)
+        results["sheet"] = verify_storyboard(lone)
+
+    t = threading.Thread(target=work, daemon=True)
+    t.start()
+    t.join(timeout=20)
+    assert not t.is_alive(), "verify blocked on a FIFO"
+    assert results["index"]["ok"] is False and "frame 1" in results["index"]["detail"]
+    assert results["sheet"]["ok"] is False
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs symlinks")
+def test_symlinked_glyph_and_sheet_are_refused(board, tmp_path):
+    dest, index, sheet = _copy_board(board, tmp_path)
+    first = json.loads(index.read_text(encoding="utf-8"))["frames"][0]["run_dir"]
+    glyph = dest / first / "glyph.svg"
+    real = tmp_path / "real-glyph.svg"
+    glyph.rename(real)
+    glyph.symlink_to(real)
+    assert "frame 1" in verify_index(index)["detail"]
+    real_sheet = tmp_path / "real-sheet.svg"
+    sheet.rename(real_sheet)
+    sheet.symlink_to(real_sheet)
+    assert verify_sheet(sheet)["ok"] is False
+
+
+def test_the_same_frame_twice_does_not_verify(board, tmp_path):
+    root, built = board
+    f = dict(built["frames"][0])
+    glyph = (root / f["run_dir"] / "glyph.svg").read_bytes()
+    frames = [dict(f, index=1), dict(f, index=2)]
+    text = sb.build_sheet_svg(
+        sb.board_id_for([f["intent_digest"]] * 2), sb.board_root_for(frames), frames, [glyph, glyph]
+    )
+    path = tmp_path / "twice.svg"
+    path.write_text(text, encoding="utf-8")
+    got = verify_sheet(path)
+    assert got["ok"] is False and "twice" in got["detail"]
+
+
+def _rebuilt_without_last_frame(board, tmp_path) -> Path:
+    """What anyone can do: drop a frame and write a new, self-consistent sheet."""
+    root, built = board
+    frames = [dict(f) for f in built["frames"][:2]]
+    glyphs = [(root / f["run_dir"] / "glyph.svg").read_bytes() for f in frames]
+    text = sb.build_sheet_svg(
+        sb.board_id_for([f["intent_digest"] for f in frames]), sb.board_root_for(frames), frames, glyphs
+    )
+    path = tmp_path / "rebuilt.svg"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_expected_root_is_what_ties_a_board_to_its_author(board, tmp_path):
+    """Consistency alone cannot catch a rebuilt board; the expected root does."""
+    _, built = board
+    rebuilt = _rebuilt_without_last_frame(board, tmp_path)
+    plain = verify_storyboard(rebuilt)
+    assert plain["ok"] is True and plain["anchored"] is False
+
+    anchored = verify_storyboard(rebuilt, expected_root=built["board_root"])
+    assert anchored["ok"] is False and "expected root" in anchored["detail"]
+
+    for source in (built["sheet_path"], built["index_path"]):
+        good = verify_storyboard(source, expected_root=built["board_root"].upper())
+        assert good["ok"] is True and good["anchored"] is True
+        assert verify_storyboard(source)["anchored"] is False
+        assert verify_storyboard(source, expected_root="not-hex")["ok"] is False
+
+
+def test_stripping_an_index_to_the_old_form_cannot_pass_an_expected_root(board, tmp_path):
+    """The downgrade still reports itself, and never satisfies an expected root."""
+    _, index, sheet = _copy_board(board, tmp_path)
+    data = json.loads(index.read_text(encoding="utf-8"))
+    for key in ("board_root", "sheet"):
+        data.pop(key)
+    data["frames"] = data["frames"][:2]
+    for f in data["frames"]:
+        f.pop("glyph_sha256")
+    data["board_id"] = sb.board_id_for([f["intent_digest"] for f in data["frames"]])
+    index.write_text(json.dumps(data), encoding="utf-8")
+    plain = verify_index(index)
+    assert plain["legacy_index"] is True and plain["anchored"] is False
+    got = verify_index(index, expected_root=board[1]["board_root"])
+    assert got["ok"] is False and "no board_root" in got["detail"]
+
+
+def test_cli_expect_root(board, tmp_path):
+    _, built = board
+    ok = subprocess.run(
+        [*CLI, "storyboard-verify", built["sheet_path"], "--expect-root", built["board_root"]],
+        capture_output=True, text=True,
+    )
+    assert ok.returncode == 0 and json.loads(ok.stdout)["anchored"] is True
+    bad = subprocess.run(
+        [*CLI, "storyboard-verify", built["sheet_path"], "--expect-root", "0" * 64],
+        capture_output=True, text=True,
+    )
     assert bad.returncode == 1 and json.loads(bad.stdout)["ok"] is False

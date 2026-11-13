@@ -35,8 +35,13 @@ run-folder names, never paths. No efficacy or authority-seal change.
 
 ## Open questions
 
-- A board proves internal consistency, not authorship. Signing a board is a
-  separate decision.
+- A board proves internal consistency, not authorship. `--expect-root` lets a
+  verifier tie a board to a root they got through a trusted channel. Signing a
+  board is a separate decision.
+- Independent review of the first version found that a failed rebuild deleted
+  the earlier board, that verify could raise or block on hostile input, and
+  that a sheet could show a viewer something other than what was checked. All
+  fixed before merge: a sheet must now equal the engine's own output exactly.
 - The sheet is SVG only. Whether a raster sheet is wanted is left open on the
   roadmap.
 

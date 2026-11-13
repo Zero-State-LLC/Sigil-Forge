@@ -363,7 +363,9 @@ dir. Two files tie the frames together, both without intent text:
 
 - `storyboards/storyboard-<board_id>.json`, the index: digests and roots only.
 - `storyboards/storyboard-<board_id>.svg`, the sheet: one SVG that embeds every frame's glyph
-  byte for byte, in order. It is safe to share and carries the whole board.
+  byte for byte, in order. It carries the whole board and holds only what a glyph already
+  shows publicly: digests and roots. An intent digest is an unsalted hash, so a short or
+  common intent can be guessed from it, here as in any glyph.
 
 `board_id` hashes the ordered digests, so order matters. `board_root` commits to the ordered
 frames (digest, root and glyph bytes), so a reordered, swapped or edited frame changes it.
@@ -373,8 +375,19 @@ python3 scripts/sigil_forge.py storyboard-verify <out>/storyboards/storyboard-<b
 python3 scripts/sigil_forge.py storyboard-verify <out>/storyboards/storyboard-<board_id>.json  # index + run folders + sheet
 ```
 
-`storyboard-verify` proves the frames belong together and are unchanged. It does not prove who
-made the board: anyone can build a new, self-consistent board from their own frames. File frames come before
+`storyboard-verify` proves a board is consistent: its frames belong together and are unchanged
+since it was written. A sheet must be exactly what the engine writes, so a comment, a script or
+an extra image in the file fails it.
+
+It does not by itself prove this is the board a particular person made, because anyone can
+drop or reorder frames and write a new consistent board. To prove that, get the `board_root`
+from them through a channel you trust and pass it:
+
+```bash
+python3 scripts/sigil_forge.py storyboard-verify <sheet-or-index> --expect-root <board_root>
+```
+
+The result then has `anchored: true`. File frames come before
 `--intent` frames. Options: `--out`, `--passphrase` (prefer env), `--seal-packet`.
 
 ## CLI overview
