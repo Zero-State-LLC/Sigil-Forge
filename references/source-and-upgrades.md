@@ -1,7 +1,8 @@
 # Source identity and upgrades
 
-This distribution is `Zero-State-LLC/Sigil-Forge`, version `0.13.1`, based on commit
-`26e72a071db27e7ce123a9459748661803897a11` before the local audit-fix commit. Record the actual installed commit
+This distribution is `Zero-State-LLC/Sigil-Forge`. Its version is the content of
+the `VERSION` file; this page names no version or commit, because a number written
+here goes stale with the next release. Record the actual installed commit
 with `git rev-parse HEAD` before installation; do not use a version string alone
 as a source identity. Root and hub packaging are distribution surfaces, not a
 claim that organizational, personal, or legacy embedded variants are identical.
