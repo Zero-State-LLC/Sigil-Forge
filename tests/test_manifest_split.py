@@ -61,6 +61,7 @@ def test_public_manifest_holds_identifiers_and_digests_only(run_dir):
         assert isinstance(value, str), (path, value)
         assert path.rsplit(".", 1)[-1] in fm.PUBLIC_METHOD_KEYS, path
     assert all(set(c) == {"id", "status"} for c in manifest["channels"])
+    assert fm.public_shape_problems(manifest) == []
     assert manifest["methods"] == fm.public_methods(manifest["methods"])
 
 
@@ -121,7 +122,7 @@ def test_verify_root_with_public_files_only(run_dir, tmp_path):
     for name in (fm.ROOT_NAME, fm.PUBLIC_NAME):
         (public_only / name).write_bytes((run_dir / name).read_bytes())
     got = fm.check_run_root(public_only)
-    assert got["ok"] is True and got["manifest_is_public"] is True
+    assert got["ok"] is True and got["manifest_public_shape"] is True
     assert "forge_manifest_digest" in got["checked"]
     assert any("method_manifest_digest" in n for n in got["not_checked"])
     assert fm.check_run_root(public_only / fm.ROOT_NAME)["ok"] is True
@@ -166,8 +167,9 @@ def test_a_manifest_that_smuggles_detail_is_not_reported_public(run_dir, tmp_pat
     root["sigil_root"] = merkle_root([(leaf["type"], leaf["value"]) for leaf in root["leaves"]])
     (run / fm.ROOT_NAME).write_text(json.dumps(root), encoding="utf-8")
     got = fm.check_run_root(run)
-    assert got["ok"] is False and got["manifest_is_public"] is False
+    assert got["ok"] is False and got["manifest_public_shape"] is False
     assert "more than identifiers" in got["detail"]
+    assert "does not match its leaf" not in got["detail"]  # caught by shape, not by digest
 
 
 def test_a_run_from_before_the_split_still_checks_and_is_reported_private(run_dir, tmp_path):
@@ -190,7 +192,7 @@ def test_a_run_from_before_the_split_still_checks_and_is_reported_private(run_di
     (run / fm.ROOT_NAME).write_text(json.dumps(root), encoding="utf-8")
     got = fm.check_run_root(run)
     assert got["ok"] is True
-    assert got["manifest_schema"] == "1.0.0" and got["manifest_is_public"] is False
+    assert got["manifest_schema"] == "1.0.0" and got["manifest_public_shape"] is False
 
 
 @pytest.mark.parametrize("junk", ["[]", "7", "null", "{}", '{"leaves": 3, "sigil_root": 1}', "\xff"])
@@ -198,7 +200,14 @@ def test_verify_root_never_raises_on_bad_input(tmp_path, junk):
     (tmp_path / fm.ROOT_NAME).write_bytes(junk.encode("latin-1"))
     got = fm.check_run_root(tmp_path)
     assert got["ok"] is False and got["detail"]
+
+
+def test_verify_root_needs_a_run_folder_or_its_root_file(run_dir, tmp_path):
+    """Any other path used to fall back to checking its parent folder."""
+    assert fm.check_run_root(run_dir / "does-not-exist.txt")["ok"] is False
+    assert fm.check_run_root(run_dir / fm.PUBLIC_NAME)["ok"] is False
     assert fm.check_run_root(tmp_path / "nowhere")["ok"] is False
+    assert fm.check_run_root(run_dir / fm.ROOT_NAME)["ok"] is True
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs symlinks")
@@ -237,3 +246,160 @@ def test_other_private_files_are_unchanged_by_the_split(run_dir):
     receipt = json.loads((run_dir / "run-receipt.json").read_text(encoding="utf-8"))
     for holder in (packet, receipt):
         assert holder["methods"]["spare"]["spare_result"]["spare_letters"] == LETTERS
+
+
+# ------------------------------------------------ findings from review of #47
+
+
+def _resealed(run: Path, edit_manifest=None, edit_root=None, drop_method=True) -> Path:
+    """Change files, then fix up the leaf and the root so only the shape check can object."""
+    from sigil_forge.artifact_root import merkle_root
+
+    manifest = json.loads((run / fm.PUBLIC_NAME).read_text(encoding="utf-8"))
+    if edit_manifest:
+        edit_manifest(manifest)
+    (run / fm.PUBLIC_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+    root = json.loads((run / fm.ROOT_NAME).read_text(encoding="utf-8"))
+    for leaf in root["leaves"]:
+        if leaf["type"] == "forge_manifest_digest":
+            leaf["value"] = fm.manifest_digest(manifest)
+    if edit_root:
+        edit_root(root)
+    root["sigil_root"] = merkle_root([(leaf["type"], leaf["value"]) for leaf in root["leaves"]])
+    (run / fm.ROOT_NAME).write_text(json.dumps(root), encoding="utf-8")
+    if drop_method:
+        (run / fm.METHOD_NAME).unlink(missing_ok=True)
+    return run
+
+
+SECRET = "i maintain calm focus"
+
+
+@pytest.mark.parametrize(
+    "smuggle",
+    [
+        lambda m: m.update(notes=SECRET),
+        lambda m: m["output"].update(extra=SECRET),
+        lambda m: m["construction"].update(extra=SECRET),
+        lambda m: m["construction"].update(algorithm_version=SECRET),
+        lambda m: m.update(mode=SECRET),
+        lambda m: m.update(mode="calm"),
+        lambda m: m["channels"][0].update(status=SECRET),
+        lambda m: m["channels"][0].update(id=SECRET),
+        lambda m: m["channels"][0].update(detail=SECRET),
+        lambda m: m["channels"].append(SECRET),
+        lambda m: m.update(channels=SECRET),
+        lambda m: m.update(channels={"a": SECRET}),
+        lambda m: m["methods"]["spare"].update(family=SECRET),
+        lambda m: m["methods"]["spare"].update(family="calm_focus " * 20),
+        lambda m: m["methods"]["spare"].update({"MNTCLFS cl m": {"family": "x"}}),
+        lambda m: m["methods"].update({"I maintain": {"family": "x"}}),
+        lambda m: m["methods"]["spare"].update(letter_sequence=["m", "n"]),
+        lambda m: m["methods"]["spare"].update(letter_count=7),
+        lambda m: m.update(forge_version=SECRET),
+        lambda m: m.update(method_manifest_digest="mntclfs"),
+        lambda m: m.pop("intent_digest"),
+        lambda m: m["channels"][0].update(status="applied"),  # a letter channel must stay masked
+    ],
+)
+def test_no_field_of_the_public_manifest_can_carry_free_text(run_dir, tmp_path, smuggle):
+    """Leaf and root are fixed up each time, so only the shape check stands in the way."""
+    run = _resealed(_copy(run_dir, tmp_path), edit_manifest=smuggle)
+    got = fm.check_run_root(run)
+    assert got["ok"] is False, got["detail"]
+    assert got["manifest_public_shape"] is False
+    assert "does not match its leaf" not in got["detail"]
+    assert "sigil_root does not match" not in got["detail"]
+
+
+def test_duplicate_keys_cannot_hide_content_from_the_digest(run_dir, tmp_path):
+    run = _copy(run_dir, tmp_path)
+    text = (run / fm.PUBLIC_NAME).read_text(encoding="utf-8")
+    hidden = '{\n  "methods": {"spare": {"spare_letters": "mntclfs"}},' + text.lstrip()[1:]
+    (run / fm.PUBLIC_NAME).write_text(hidden, encoding="utf-8")
+    assert json.loads(hidden) == json.loads(text)  # an ordinary parser sees no difference
+    got = fm.check_run_root(run)
+    assert got["ok"] is False and "malformed" in got["detail"]
+
+
+@pytest.mark.parametrize(
+    "edit_root",
+    [
+        lambda r: r.update(notes=SECRET),
+        lambda r: r["leaves"][0].update(note=SECRET),
+        lambda r: [leaf.update(value="mntclfs") for leaf in r["leaves"] if leaf["type"] == "method_manifest_digest"],
+        lambda r: r["leaves"].append({"type": "extra_leaf", "value": "0" * 64}),
+        lambda r: r.update(leaves=[leaf for leaf in r["leaves"] if leaf["type"] != "method_manifest_digest"]),
+        lambda r: r.update(leaves=[leaf for leaf in r["leaves"] if leaf["type"] != "intent_digest"]),
+    ],
+)
+def test_the_root_file_itself_must_have_the_exact_public_shape(run_dir, tmp_path, edit_root):
+    run = _resealed(_copy(run_dir, tmp_path), edit_root=edit_root)
+    assert fm.check_run_root(run)["ok"] is False
+
+
+@pytest.mark.parametrize("schema", [2, "2", "2.0.0-x", "02.0.0", "3.0.0", "", None, "two"])
+def test_unknown_manifest_schema_is_refused(run_dir, tmp_path, schema):
+    run = _resealed(_copy(run_dir, tmp_path), edit_manifest=lambda m: m.update(schema_version=schema))
+    got = fm.check_run_root(run)
+    assert got["ok"] is False and got["manifest_public_shape"] is False
+
+
+def _public_without_digests(manifest: dict) -> dict:
+    m = json.loads(json.dumps(manifest))
+    for key in ("intent_digest", "intent_commitment", "method_manifest_digest"):
+        m.pop(key)
+    m["output"].pop("geometry_digest")
+    return m
+
+
+def test_public_manifest_does_not_depend_on_the_intents_letters(tmp_path):
+    """Same options, very different intents: only the digests may differ.
+
+    A vowel-only intent has no monogram or bind-rune, which used to show as a
+    different channel status in the public file.
+    """
+    manifests = []
+    for i, intent in enumerate(
+        ["I maintain calm focus", "aeiou aeiou", "A", "Zzz zzz zzz zzz zzz zzz zzz zzz", "I keep my word"]
+    ):
+        packet = construct_run(intent, out_root=tmp_path / str(i), square="mars")
+        run = Path(packet["artifacts"]["run_dir"])
+        manifests.append(json.loads((run / fm.PUBLIC_NAME).read_text(encoding="utf-8")))
+        assert fm.check_run_root(run)["manifest_public_shape"] is True
+    first = _public_without_digests(manifests[0])
+    for other in manifests[1:]:
+        assert _public_without_digests(other) == first
+
+
+def test_letter_channels_are_masked_in_public_and_kept_in_private(run_dir):
+    public = json.loads((run_dir / fm.PUBLIC_NAME).read_text(encoding="utf-8"))
+    private = json.loads((run_dir / fm.METHOD_NAME).read_text(encoding="utf-8"))
+    statuses = {c["id"]: c["status"] for c in public["channels"]}
+    for cid in fm.LETTER_CHANNELS:
+        assert statuses[cid] == "private"
+    assert statuses["intent_digest"] == "applied"
+    real = {c["id"]: c["status"] for c in private["channels"]}
+    assert real["spare_monogram"] == "applied"
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {},
+        {"mode": "practice"},
+        {"kamea_encoding": "latin_mod9_v1"},
+        {"kamea_encoding": "latin_extended"},
+        {"spare_mode": "pictorial"},
+        {"spare_mode": "phonetic_mantric"},
+        {"square": "venus"},
+        {"write_polish": True},
+        {"passphrase": "p", "proof": "commitment"},
+        {"passphrase": "p", "seal_packet": True},
+    ],
+)
+def test_every_real_run_has_the_public_shape(tmp_path, options):
+    """The strict check must accept everything the engine itself writes."""
+    packet = construct_run(INTENT, out_root=tmp_path, **options)
+    got = fm.check_run_root(Path(packet["artifacts"]["run_dir"]))
+    assert got["ok"] is True and got["manifest_public_shape"] is True, got["detail"]

@@ -75,7 +75,16 @@ leaves in `artifact-root.json` and checks `forge-manifest.json` (and
 `method-manifest.json` when present) against their leaves. It works with the
 two public files alone. A run made before the manifest was split has a schema
 1.x `forge-manifest.json` that holds method detail; `verify-root` reports
-`manifest_is_public: false` for it and that file stays private.
+`manifest_public_shape: false` for it and that file stays private.
+
+`manifest_public_shape: true` means the manifest has exactly the public shape:
+the expected fields, identifiers without spaces, known modes and statuses. It
+is a check of form. It shows a manifest was not altered to carry free text; it
+cannot show that whoever wrote it put nothing private into a well-formed
+identifier. In the public manifest, channels drawn from the intent's letters
+(`spare_monogram`, `kamea_path`, `bind_runes`, `rose_cross_path`,
+`phonetic_sigil`) have status `private`, because whether one applied can
+depend on the letters. Their real status is in `method-manifest.json`.
 
 `verify-proof` reports provider status. Missing Noir/risc0 → **skipped**, not
 a forge failure. The local attestation is verified by opening the capsule, so

@@ -15,13 +15,14 @@ All notable changes to this project are recorded here, newest first. The format 
 ### Changed
 
 - `forge-manifest.json` is now safe to share (schema 2.0.0): method identifiers and digests
-  only, and channel ids and statuses without their detail. It used to copy the packet's
+  only, and channel ids and statuses without their detail. Channels drawn from the intent's
+  letters show status `private` there. It used to copy the packet's
   intent-derived `methods` block while being described as public. The detail moved to
   `method-manifest.json`.
 - The two manifest leaves in `artifact-root.json` now differ: `forge_manifest_digest` covers the
   public manifest and `method_manifest_digest` the private one. They used to be the same value.
   `sigil_root` for new runs is computed over the new leaves; runs made earlier keep verifying,
-  and `verify-root` reports their schema 1.x manifest as not public.
+  and `verify-root` reports their schema 1.x manifest as not having the public shape.
 
 ## 0.17.0 - 2026-11-13
 

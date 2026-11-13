@@ -57,8 +57,35 @@ PUBLIC_METHOD_KEYS = frozenset(
         "planet",  # chosen from the public digest, or named by the operator
     }
 )
-_PUBLIC_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:+\-/ ]{0,79}")
+# An identifier: no spaces, so it cannot hold a sentence.
+_PUBLIC_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:+\-/]{0,63}")
+_PUBLIC_KEY = re.compile(r"[a-z][a-z0-9_]{0,39}")
+_VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z.+\-]{0,31}")
+_SCHEMA_PUBLIC = re.compile(r"2\.\d{1,4}\.\d{1,4}")
+_SCHEMA_LEGACY = re.compile(r"1\.\d{1,4}\.\d{1,4}")
 _HEX64 = re.compile(r"[0-9a-f]{64}")
+PUBLIC_KEYS = frozenset(
+    {
+        "schema_version", "forge_engine_version", "forge_version", "intent_digest",
+        "intent_commitment", "mode", "methods", "method_manifest_digest", "channels",
+        "output", "construction",
+    }
+)
+FORGE_MODES = ("creative", "practice")
+CHANNEL_STATUSES = ("applied", "skipped", "private")
+# Channels drawn from the intent's letters. Whether one applied can depend on
+# the letters themselves (an intent with no consonants has no monogram), so
+# the public manifest does not say; the private manifest does.
+LETTER_CHANNELS = frozenset(
+    {"spare_monogram", "kamea_path", "bind_runes", "rose_cross_path", "phonetic_sigil"}
+)
+ROOT_KEYS = frozenset({"schema_version", "domain", "sigil_root", "leaves"})
+LEAF_TYPES = frozenset(
+    {
+        "canonical_glyph_digest", "ciphertext_digest", "forge_manifest_digest",
+        "intent_commitment", "intent_digest", "method_manifest_digest",
+    }
+)
 
 
 def public_methods(methods: dict[str, Any] | None) -> dict[str, Any]:
@@ -68,6 +95,8 @@ def public_methods(methods: dict[str, Any] | None) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for key in sorted(node):
             value = node[key]
+            if not isinstance(key, str) or not _PUBLIC_KEY.fullmatch(key):
+                continue
             if isinstance(value, dict):
                 inner = reduce(value)
                 if inner:
@@ -81,11 +110,79 @@ def public_methods(methods: dict[str, Any] | None) -> dict[str, Any]:
         return out
 
     result: dict[str, Any] = {}
-    for name in sorted(methods or {}):
+    for name in sorted(methods or {}, key=str):
         if name == "sigil_root" or not isinstance(methods[name], dict):
+            continue
+        if not isinstance(name, str) or not _PUBLIC_KEY.fullmatch(name):
             continue
         result[name] = reduce(methods[name])
     return result
+
+
+def public_channels(channels: list[dict[str, Any]] | None) -> list[dict[str, str]]:
+    """Channel ids with a status that says nothing about the intent's letters."""
+    out = []
+    for c in channels or []:
+        cid = c.get("id")
+        status = "private" if cid in LETTER_CHANNELS else c.get("status")
+        out.append({"id": cid, "status": status})
+    return out
+
+
+def public_shape_problems(manifest: Any) -> list[str]:
+    """Why a manifest does not have the public shape; empty when it does.
+
+    This is a check of shape: exact keys, exact types, identifiers without
+    spaces, known modes and statuses. It cannot know what a well-formed
+    identifier means, so it shows a file was not altered into something
+    carrying free text, not that its author put nothing private into it.
+    """
+    if not isinstance(manifest, dict):
+        return ["not an object"]
+    problems: list[str] = []
+    if set(manifest) != PUBLIC_KEYS:
+        problems.append("unexpected or missing top-level fields")
+    for key in ("forge_engine_version", "forge_version"):
+        if not isinstance(manifest.get(key), str) or not _VERSION.fullmatch(manifest[key]):
+            problems.append(f"{key} is not a version string")
+    for key in ("intent_digest", "intent_commitment", "method_manifest_digest"):
+        if not isinstance(manifest.get(key), str) or not _HEX64.fullmatch(manifest[key]):
+            problems.append(f"{key} is not a digest")
+    if manifest.get("mode") not in FORGE_MODES:
+        problems.append("mode is not a known forge mode")
+    methods = manifest.get("methods")
+    if not isinstance(methods, dict) or methods != public_methods(methods):
+        problems.append("methods holds more than identifiers")
+    channels = manifest.get("channels")
+    if not isinstance(channels, list) or len(channels) > 64:
+        problems.append("channels is not a list")
+    else:
+        for c in channels:
+            if (
+                not isinstance(c, dict)
+                or set(c) != {"id", "status"}
+                or not isinstance(c["id"], str)
+                or not _PUBLIC_KEY.fullmatch(c["id"])
+                or c["status"] not in CHANNEL_STATUSES
+                or (c["id"] in LETTER_CHANNELS and c["status"] != "private")
+            ):
+                problems.append("a channel entry is not an id and a known status")
+                break
+    output = manifest.get("output")
+    if not isinstance(output, dict) or set(output) != {"geometry_digest"} or not (
+        output["geometry_digest"] is None
+        or (isinstance(output["geometry_digest"], str) and _HEX64.fullmatch(output["geometry_digest"]))
+    ):
+        problems.append("output is not a single geometry digest")
+    construction = manifest.get("construction")
+    if (
+        not isinstance(construction, dict)
+        or set(construction) != {"algorithm_version"}
+        or not isinstance(construction["algorithm_version"], str)
+        or not _PUBLIC_VALUE.fullmatch(construction["algorithm_version"])
+    ):
+        problems.append("construction is not a single algorithm version")
+    return problems
 
 
 def build_method_manifest(
@@ -133,7 +230,7 @@ def build_forge_manifest(
         "method_manifest_digest": (method_manifest_digest or "").lower() or None,
         # Channel detail carries counts that follow the intent's length, so
         # only the id and status are public.
-        "channels": [{"id": c.get("id"), "status": c.get("status")} for c in (channels or [])],
+        "channels": public_channels(channels),
         "output": {
             "geometry_digest": (glyph_digest or "").lower() or None,
         },
@@ -193,7 +290,16 @@ def _read_json(path: Path) -> Any:
         os.close(fd)
     if len(data) > MAX_MANIFEST_BYTES:
         raise OSError("larger than the limit")
-    return json.loads(data.decode("utf-8"))
+
+    def no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        # A repeated key keeps only its last value once parsed, so the bytes
+        # could carry something the digest never sees.
+        obj = dict(pairs)
+        if len(obj) != len(pairs):
+            raise ValueError("duplicate key")
+        return obj
+
+    return json.loads(data.decode("utf-8"), object_pairs_hook=no_duplicates)
 
 
 def check_run_root(path: Path | str) -> dict[str, Any]:
@@ -204,6 +310,11 @@ def check_run_root(path: Path | str) -> dict[str, Any]:
     root from the listed leaves and the forge manifest's digest, and confirms
     the manifest names the same digest and commitment as the leaves. The
     private method manifest is checked too when it is present.
+
+    ``manifest_public_shape`` says the forge manifest has exactly the public
+    shape (see ``public_shape_problems``). That is a check of form. It shows a
+    manifest was not altered to carry free text; it cannot show that whoever
+    wrote it put nothing private into a well-formed identifier.
     """
     p = Path(path)
     run = p if p.is_dir() else p.parent
@@ -212,11 +323,14 @@ def check_run_root(path: Path | str) -> dict[str, Any]:
         "run_dir": str(run),
         "sigil_root": None,
         "manifest_schema": None,
-        "manifest_is_public": None,
+        "manifest_public_shape": None,
         "checked": [],
         "not_checked": [],
         "detail": "",
     }
+    if not p.is_dir() and p.name != ROOT_NAME:
+        out["detail"] = f"give a run folder or its {ROOT_NAME}"
+        return out
     try:
         problems = _check_run_root(run, out)
     except (OSError, UnicodeDecodeError) as exc:
@@ -231,46 +345,61 @@ def check_run_root(path: Path | str) -> dict[str, Any]:
 def _check_run_root(run: Path, out: dict[str, Any]) -> list[str]:
     problems: list[str] = []
     root = _read_json(run / ROOT_NAME)
+    if not isinstance(root, dict) or set(root) != ROOT_KEYS:
+        raise ValueError("unexpected root fields")
     listed = root["leaves"]
     if not isinstance(listed, list) or not listed:
         raise ValueError("no leaves")
     leaves: dict[str, str] = {}
     for leaf in listed:
-        kind, value = leaf["type"], leaf["value"]
-        if not isinstance(kind, str) or not isinstance(value, str) or kind in leaves:
+        if not isinstance(leaf, dict) or set(leaf) != {"type", "value"}:
             raise ValueError("bad leaf")
+        kind, value = leaf["type"], leaf["value"]
+        if kind not in LEAF_TYPES or kind in leaves:
+            raise ValueError("unknown or repeated leaf type")
+        if not isinstance(value, str) or not _HEX64.fullmatch(value):
+            raise ValueError("leaf is not a digest")
         leaves[kind] = value
     claimed = root["sigil_root"]
-    out["sigil_root"] = claimed if isinstance(claimed, str) else None
+    if not isinstance(claimed, str) or not _HEX64.fullmatch(claimed):
+        raise ValueError("sigil_root is not a digest")
+    out["sigil_root"] = claimed
+    for required in ("forge_manifest_digest", "method_manifest_digest", "intent_digest", "intent_commitment"):
+        if required not in leaves:
+            problems.append(f"root has no {required} leaf")
     if merkle_root(sorted(leaves.items())) != claimed:
         problems.append("sigil_root does not match its leaves")
     else:
         out["checked"].append("sigil_root recomputed from leaves")
 
+    legacy = False
     manifest_path = run / PUBLIC_NAME
     if manifest_path.exists() or manifest_path.is_symlink():
         manifest = _read_json(manifest_path)
         if not isinstance(manifest, dict):
             raise ValueError("manifest is not an object")
-        schema = str(manifest.get("schema_version") or "")
-        out["manifest_schema"] = schema
-        public = schema.split(".", 1)[0] == PUBLIC_SCHEMA_VERSION.split(".", 1)[0]
+        schema = manifest.get("schema_version")
+        out["manifest_schema"] = schema if isinstance(schema, str) else None
         if manifest_digest(manifest) != leaves.get("forge_manifest_digest"):
             problems.append("forge-manifest.json does not match its leaf")
         else:
             out["checked"].append("forge_manifest_digest")
         for key in ("intent_digest", "intent_commitment"):
-            if key in leaves and manifest.get(key) != leaves[key]:
+            if manifest.get(key) != leaves.get(key):
                 problems.append(f"forge-manifest.json {key} differs from the leaf")
-        if public:
+        if isinstance(schema, str) and _SCHEMA_PUBLIC.fullmatch(schema):
             if manifest.get("method_manifest_digest") != leaves.get("method_manifest_digest"):
                 problems.append("forge-manifest.json names a different method manifest")
-            if manifest.get("methods") != public_methods(manifest.get("methods")) or any(
-                set(c) - {"id", "status"} for c in manifest.get("channels") or [] if isinstance(c, dict)
-            ):
-                problems.append("forge-manifest.json holds more than identifiers")
-                public = False
-        out["manifest_is_public"] = public
+            shape = public_shape_problems(manifest)
+            out["manifest_public_shape"] = not shape
+            problems += [f"forge-manifest.json: {why}" for why in shape]
+        elif isinstance(schema, str) and _SCHEMA_LEGACY.fullmatch(schema):
+            # Before the split: this file holds the method detail. Private.
+            legacy = True
+            out["manifest_public_shape"] = False
+        else:
+            out["manifest_public_shape"] = False
+            problems.append("forge-manifest.json has an unknown schema_version")
     else:
         out["not_checked"].append("forge_manifest_digest (forge-manifest.json not present)")
 
@@ -283,14 +412,11 @@ def _check_run_root(run: Path, out: dict[str, Any]) -> list[str]:
             problems.append("method-manifest.json does not match its leaf")
         else:
             out["checked"].append("method_manifest_digest")
-    elif out["manifest_schema"] and not out["manifest_is_public"]:
+    elif legacy:
         out["not_checked"].append("method_manifest_digest (same file as the schema 1 manifest)")
     else:
         out["not_checked"].append("method_manifest_digest (private file not present)")
 
-    for kind in sorted(set(leaves) - {"forge_manifest_digest", "method_manifest_digest"}):
-        if not _HEX64.fullmatch(leaves[kind]):
-            problems.append(f"leaf {kind} is not a digest")
     # The glyph leaf is the digest of glyph.svg before the root was written
     # into its metadata, so it cannot be recomputed from the finished file.
     out["not_checked"].append("canonical_glyph_digest (taken before the root was written into the glyph)")

@@ -39,6 +39,15 @@ either manifest. No efficacy or authority-seal change.
 - The public manifest keeps `planet` for the kamea method. It is chosen from
   the public digest or named by the operator, and is visible in the glyph.
 - `intent_digest` is still an unsalted hash in public files (#31).
+- Independent review of the first version found that the public check looked
+  at only part of the manifest, so a file could carry free text and still be
+  reported public, and that two channel statuses revealed whether the intent
+  had consonants. Fixed before merge: the whole file's shape is now checked,
+  duplicate JSON keys are refused, and letter-derived channels are masked.
+  The check is still one of form, and the docs say so.
+- `semantic_verification` in the method data reads
+  `VERIFIED_geometry_from_letters` even when the monogram was skipped. That
+  predates this change and is not fixed here.
 
 ## Verified / assumed claims
 
