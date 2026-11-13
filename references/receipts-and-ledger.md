@@ -5,12 +5,34 @@
 Every construct (unless `--no-receipt`) writes:
 
 - `run-receipt.json` in the run directory
-- Appends one line to `out/sigil-forge/run-receipts.jsonl` (override with
-  `SIGIL_FORGE_RECEIPTS`)
+- Appends one line to `<state root>/ledger/run-receipts.jsonl` (override with
+  `SIGIL_FORGE_RECEIPTS`; an existing log at the old
+  `out/sigil-forge/run-receipts.jsonl` keeps being used)
 
 Receipt fields include `intent_digest`, applied/skipped channels, methods,
-skill version, and `receipt_hash`. **No plaintext intent** is required on the
-receipt when the packet was sealed.
+skill version, and `receipt_hash`. A receipt holds **no plaintext intent** and
+no commitment nonce.
+
+### Receipts are private
+
+A receipt is an operator record, **not public media**, and it is not
+digests-only:
+
+- `methods` is copied from the forge packet and is derived from the intent:
+  the reduced Spare letters, the bind-rune sequence, the Hebrew
+  transliteration, and the kamea and rose-cross paths. The transliteration
+  alone lets a reader recover most of the intent.
+- `intent_digest` is an unsalted SHA-256 of the normalized intent. A short or
+  common intent can be guessed against it, and two runs of the same intent
+  share it.
+
+So: do not publish, attach or sync `run-receipt.json` or `run-receipts.jsonl`,
+and do not point `SIGIL_FORGE_RECEIPTS` at a shared location. The engine
+creates new receipt files owner-only (`0600`) and keeps the default log in an
+owner-only directory; a file that already exists keeps its mode, and the other
+files of a run directory written to an operator-chosen `--out` are not
+restricted. The surfaces meant to be shared are the wallpaper PNG,
+`artifact-root.json` and the storyboard index.
 
 `canon_status` on receipts is `OBSERVATION`.
 
@@ -31,7 +53,7 @@ python3 scripts/sigil_forge.py ledger --limit 20
 ```
 
 Every entry has `canon_status: PROPOSED`. Default path:
-`out/sigil-forge/learning-ledger.jsonl` (override `SIGIL_FORGE_LEDGER`).
+`<state root>/ledger/learning-ledger.jsonl` (override `SIGIL_FORGE_LEDGER`).
 
 Schema: `schemas/learning-ledger-entry.schema.json`.
 
@@ -46,7 +68,7 @@ offline.
 
 1. Operator reviews `ledger --limit N` (or `ledger list` / `ledger export`).
 2. `ledger promote --index K --i-confirm PROMOTE` appends to
-   `out/sigil-forge/canon-proposals.jsonl` (override `SIGIL_FORGE_CANON_PROPOSALS`
+   `<state root>/ledger/canon-proposals.jsonl` (override `SIGIL_FORGE_CANON_PROPOSALS`
    or `--out`).
 3. Agent never runs promote without the explicit human confirm string `PROMOTE`.
 4. Promoting does **not** edit `references/` or skill code, and does **not**

@@ -1,6 +1,11 @@
 """Run receipts and proposal-only learning ledger.
 
 Receipts: append-only JSONL of construct outcomes (integrity hash optional).
+Receipts are PRIVATE operator records, not public media: ``methods`` carries
+intent-derived data (reduced letters, the Hebrew transliteration, kamea and
+rose-cross paths) from which the intent can largely be read back, and
+``intent_digest`` is an unsalted hash a short intent can be guessed against.
+New receipt files are therefore created owner-only (0600).
 Learning ledger: operator-submitted observations with canon_status PROPOSED only —
 never auto-promoted to skill corpus.
 """
@@ -15,7 +20,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from sigil_forge.paths import default_state_root, ensure_private_dir, skill_root
+from sigil_forge.paths import (
+    default_state_root,
+    ensure_private_dir,
+    skill_root,
+    write_private_text,
+)
 
 RECEIPT_SCHEMA_VERSION = "1.0"
 LEDGER_SCHEMA_VERSION = "1.0"
@@ -86,7 +96,12 @@ def build_run_receipt(
     skill_version: str,
     verify_ok: bool | None = None,
 ) -> dict[str, Any]:
-    """Build a receipt dict from a forge packet (no plaintext intent required)."""
+    """Build a receipt dict from a forge packet.
+
+    The receipt holds no plaintext intent and no commitment nonce, but it is
+    not digests-only: ``methods`` is copied from the packet and is derived from
+    the intent. Treat the result as private (see the module docstring).
+    """
     channels = packet.get("channels") or []
     applied = [c.get("id") for c in channels if c.get("status") == "applied"]
     skipped = [
@@ -127,15 +142,18 @@ def build_run_receipt(
 
 
 def write_receipt_file(receipt: dict[str, Any], path: Path) -> Path:
+    """Write one receipt, owner-only (0600): receipts are private records."""
     _make_parent(path)
-    path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_private_text(path, json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     return path
 
 
 def append_receipt_log(receipt: dict[str, Any], log_path: Path | None = None) -> Path:
     path = log_path or default_receipts_path()
     _make_parent(path)
-    with path.open("a", encoding="utf-8") as fh:
+    # A log this call creates is owner-only; an existing log keeps its mode.
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(receipt, sort_keys=True) + "\n")
     return path
 

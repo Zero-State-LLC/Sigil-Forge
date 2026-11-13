@@ -331,7 +331,7 @@ See [references/wallpaper-framework.md](references/wallpaper-framework.md) · [r
 | `forge-manifest.json` | Public forge config/outputs (hashed into root; no self-root) |
 | `artifact-root.json` | Merkle leaves + `sigil_root` |
 | `intent-capsule.json` | Sealed witness when passphrase + proof/seal path |
-| `run-receipt.json` | Run integrity receipt |
+| `run-receipt.json` | Run integrity receipt. **Private**: carries intent-derived method data |
 | `proofs/` | Optional proof-manifest + local/Noir/risc0 outputs |
 | Stego carriers | SVG metadata / path / metric channels + PNG LSB |
 | `polish_prompt.json` | Geometry-locked host polish package (optional) |
@@ -339,7 +339,7 @@ See [references/wallpaper-framework.md](references/wallpaper-framework.md) · [r
 | `receipts/` | Wallpaper receipts |
 | Learning ledger | PROPOSED only via `learn` / `ledger` (never auto-canon) |
 
-Public media must not contain plaintext intent by default. Packet may seal intent with a passphrase.
+Public media must not contain plaintext intent by default. Packet may seal intent with a passphrase. The packet and the run receipt are workspace, not public media: keep them private (see [references/receipts-and-ledger.md](references/receipts-and-ledger.md)).
 
 Channels: [references/channels-and-steganography.md](references/channels-and-steganography.md)
 

@@ -93,3 +93,46 @@ def test_operator_env_path_keeps_plain_mkdir_mode(tmp_path, monkeypatch, request
     monkeypatch.setenv("SIGIL_FORGE_RECEIPTS", str(target))
     receipt.append_receipt_log({"a": 1})
     assert target.parent.stat().st_mode & 0o777 == 0o755
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
+def test_new_receipt_files_are_owner_only(tmp_path, monkeypatch, request):
+    """Receipts are private records: files this engine creates are 0600."""
+    _clean(monkeypatch, tmp_path)
+    previous = os.umask(0o022)
+    request.addfinalizer(lambda: os.umask(previous))
+    single = receipt.write_receipt_file({"a": 1}, tmp_path / "run" / "run-receipt.json")
+    assert single.stat().st_mode & 0o777 == 0o600
+    log = tmp_path / "shared" / "r.jsonl"
+    receipt.append_receipt_log({"a": 1}, log)
+    receipt.append_receipt_log({"a": 2}, log)
+    assert log.stat().st_mode & 0o777 == 0o600
+    assert len(log.read_text(encoding="utf-8").splitlines()) == 2
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX file modes")
+def test_existing_receipt_log_keeps_its_mode(tmp_path, monkeypatch):
+    _clean(monkeypatch, tmp_path)
+    log = tmp_path / "r.jsonl"
+    log.write_text("", encoding="utf-8")
+    os.chmod(log, 0o644)
+    receipt.append_receipt_log({"a": 1}, log)
+    assert log.stat().st_mode & 0o777 == 0o644
+
+
+def test_receipt_has_no_plaintext_or_nonce_but_is_not_digests_only(tmp_path, monkeypatch):
+    """Pins why receipts are private: intent-derived method data is in them."""
+    import json
+
+    from sigil_forge.construct import run as construct_run
+
+    _clean(monkeypatch, tmp_path)
+    intent = "I maintain calm focus"
+    monkeypatch.setenv("SIGIL_FORGE_RECEIPTS", str(tmp_path / "log.jsonl"))
+    result = construct_run(intent, out_root=tmp_path / "products")
+    path = result["artifacts"]["receipt_json"]
+    text = open(path, encoding="utf-8").read()
+    assert intent.lower() not in text.lower()
+    assert "nonce" not in text.lower()
+    methods = json.loads(text)["methods"]
+    assert methods["spare"]["spare_result"]["spare_letters"] == "mntclfs"
