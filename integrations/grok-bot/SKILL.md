@@ -135,7 +135,8 @@ They are private:
 - `forge-packet.json` and `forge-packet.md`: hold the plaintext intent.
 - `run-receipt.json` and the receipt log: hold data derived from the intent.
 - `intent-capsule.json` and anything under `proofs/`.
-- `forge-manifest.json`.
+- `method-manifest.json`, and `forge-manifest.json` from any run made before
+  version 0.18.
 
 Do not paste the intent, the passphrase or a recovered intent into Slack,
 email, a pull request, or any shared place.

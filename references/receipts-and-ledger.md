@@ -32,14 +32,16 @@ creates new receipt files owner-only (`0600`) and keeps the default log in an
 owner-only directory; a file that already exists keeps its mode.
 
 The same holds for two other files of a run: `forge-packet.json` (plaintext
-intent unless sealed) and `forge-manifest.json` (the same intent-derived
-`methods` block as a receipt). Every run folder is created owner-only
+intent unless sealed) and `method-manifest.json` (the same intent-derived
+`methods` block as a receipt, also written `0600`). In a run made before the
+manifest was split, `forge-manifest.json` holds that block and is private too. Every run folder is created owner-only
 (`0700`), including under an operator-chosen `--out`, so other users cannot
 read the files inside it even though most of them have ordinary modes.
 Copying a run folder, or changing its mode, removes that protection.
 
 The surfaces meant to be shared are the wallpaper PNG, `glyph.svg`,
-`artifact-root.json`, and a storyboard's index and sheet.
+`artifact-root.json`, `forge-manifest.json` (schema 2.x), and a storyboard's
+index and sheet.
 
 `canon_status` on receipts is `OBSERVATION`.
 

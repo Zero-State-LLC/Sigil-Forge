@@ -11,7 +11,7 @@ from pathlib import Path
 def cmd_help(_: argparse.Namespace) -> int:
     print(
         "sigil-forge — multi-channel intent sigils (Hermes skill)\n"
-        "commands: construct | storyboard | storyboard-verify | verify | verify-proof | inspect | png-stats | wallpaper | wizard | open | learn | ledger | "
+        "commands: construct | storyboard | storyboard-verify | verify | verify-root | verify-proof | inspect | png-stats | wallpaper | wizard | open | learn | ledger | "
         "policy | doctor | eval | check | help\n"
         "Product: wallpaper PNG with SF12 sealed vault (intent + methods in-image).\n"
         "See SKILL.md, QUICKSTART.md, references/hermes-runtime-contract.md\n"
@@ -89,6 +89,7 @@ def cmd_check(_: argparse.Namespace) -> int:
         "schemas/intent-capsule.schema.json",
         "schemas/artifact-root.schema.json",
         "schemas/forge-manifest.schema.json",
+        "schemas/method-manifest.schema.json",
         "schemas/proof-manifest.schema.json",
         "scripts/validate_hermes_skill.py",
         "src/sigil_forge/validate_hermes_skill.py",
@@ -110,6 +111,7 @@ def cmd_check(_: argparse.Namespace) -> int:
         "schemas/intent-capsule.schema.json",
         "schemas/artifact-root.schema.json",
         "schemas/forge-manifest.schema.json",
+        "schemas/method-manifest.schema.json",
         "schemas/proof-manifest.schema.json",
     ):
         path = root / rel
@@ -461,6 +463,15 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     from sigil_forge.inspect_artifact import inspect_path
 
     result = inspect_path(args.artifact)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result.get("ok") else 1
+
+
+def cmd_verify_root(args: argparse.Namespace) -> int:
+    """Check a run's public root and manifests; needs no passphrase."""
+    from sigil_forge.forge_manifest import check_run_root
+
+    result = check_run_root(args.path)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("ok") else 1
 
@@ -1797,6 +1808,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Omit plaintext intent from each packet (requires a passphrase)",
     )
 
+    pvr = sub.add_parser(
+        "verify-root",
+        help="Check a run's sigil_root and manifests from public files (no passphrase)",
+    )
+    pvr.add_argument("path", help="Run folder, or its artifact-root.json")
+
     psv = sub.add_parser(
         "storyboard-verify",
         help="Verify a storyboard from its index (.json) or its sheet (.svg)",
@@ -1826,6 +1843,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_storyboard(args)
     if args.cmd == "storyboard-verify":
         return cmd_storyboard_verify(args)
+    if args.cmd == "verify-root":
+        return cmd_verify_root(args)
     if args.cmd == "verify":
         return cmd_verify(args)
     if args.cmd == "inspect":

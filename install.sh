@@ -169,6 +169,7 @@ validate_source() {
     "schemas/intent-capsule.schema.json"
     "schemas/artifact-root.schema.json"
     "schemas/forge-manifest.schema.json"
+    "schemas/method-manifest.schema.json"
     "schemas/proof-manifest.schema.json"
   )
   local f

@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sigil-forge.local/schemas/method-manifest.schema.json",
+  "title": "Sigil-Forge Private Method Manifest",
+  "description": "Private. Method detail derived from the intent; hashed into sigil_root as method_manifest_digest. Must not contain sigil_root.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kind",
+    "intent_digest",
+    "methods",
+    "channels"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "kind": {
+      "const": "sigil_forge_method_manifest"
+    },
+    "forge_version": {
+      "type": "string"
+    },
+    "intent_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "methods": {
+      "type": "object"
+    },
+    "channels": {
+      "type": "array"
+    }
+  },
+  "not": {
+    "required": [
+      "sigil_root"
+    ]
+  }
+}
