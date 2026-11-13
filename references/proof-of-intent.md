@@ -79,7 +79,7 @@ verify both pass.
 |------|------------------|----------|
 | `none` | No | Commitment + root still emitted; no capsule |
 | `commitment` | Yes | Capsule + local knowledge attestation |
-| `zk-knowledge` | Yes | Local attestation + optional Noir (skip if no nargo) |
+| `zk-knowledge` | Yes | Local attestation + optional Noir proof (skipped unless `nargo` and `bb` are installed) |
 | `zk-forge` | No | Optional risc0/zkVM path (skip if guest unavailable) |
 
 ## Fail closed

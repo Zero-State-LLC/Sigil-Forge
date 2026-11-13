@@ -5,7 +5,26 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+### Added
+
+- The Noir `zk-knowledge` proof works with the current toolchain (nargo 1.0.0, bb 6.0.0):
+  `nargo execute`, then `bb prove` and `bb verify`. It needs `bb` as well as `nargo` now.
+- `scripts/install-noir-toolchain.sh` installs both tools from the official release archives
+  after checking pinned SHA-256 hashes. CI runs the real prove and verify tests with it.
+
 ### Changed
+
+- The Noir circuit is version 2: SHA-256 is built from the standard library's compression
+  function, because Noir 1.0 removed `std::hash::sha256`. The intent length is now a public
+  input bound to the bytes, so the published length is proven. An intent containing a NUL
+  byte is refused by the Noir path.
+- `verify-proof` credits a Noir proof only when its commitment and length equal the ones in
+  the run's packet. A failed Noir step reports an exit code, never tool output.
+- Noir proving and verifying run in a private temporary copy of the circuit. The installed
+  skill tree is never written, and the witness is deleted with that copy.
+- Noir `verify` rebuilds the verification key from the installed circuit, builds the public
+  inputs from the commitment it is asked about, and checks the exact proof file it is given.
+  A proof made by the old flow (circuit version 1) does not verify.
 
 - Run receipts are documented as private operator records. They hold no plaintext intent, but
   their `methods` block is derived from the intent and `intent_digest` is an unsalted hash. The
@@ -101,7 +120,8 @@ The personal v0.14.0 line is not carried over in full. These parts were left out
   `from sigil_forge.paths import ...`.
 - New ledger files go to `<state root>/ledger/`. An existing ledger at the old location keeps
   being used.
-- The Noir zk-knowledge proof path is experimental. Its port to `bb` is tracked in issue #15.
+- The Noir zk-knowledge proof path is experimental. Its port to `bb` is tracked in issue #15
+  (done after this release; see Unreleased).
 
 ---
 
