@@ -55,7 +55,7 @@ If that prints `"ok": true`, skip to 3b. If the file is missing, install.
 Installing downloads code, so ask the user to approve it first:
 
 ```bash
-git clone --depth 1 --branch v0.16.0 https://github.com/Zero-State-LLC/Sigil-Forge "$HOME/sigil-forge-src"
+git clone --depth 1 --branch v0.17.0 https://github.com/Zero-State-LLC/Sigil-Forge "$HOME/sigil-forge-src"
 git -C "$HOME/sigil-forge-src" rev-parse HEAD
 bash "$HOME/sigil-forge-src/install.sh" --standalone
 export SIGIL_FORGE_HOME="$HOME/.sigil-forge"
