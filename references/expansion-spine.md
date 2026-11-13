@@ -1,6 +1,6 @@
 # Expansion spine
 
-**Current release: v0.15.0** (this file tracks shipped vs remaining).
+**Current release: v0.16.0** (this file tracks shipped vs remaining).
 
 Sigil-Forge is a standalone Hermes skill with a lean install tree, additive
 channels, and an explicit method ontology so “sigil” never collapses intent
@@ -30,6 +30,7 @@ compression, name paths, planetary characters, and entity seals.
 | v0.13.0 | **Wallpaper product:** SF12 sealed vault (intent+methods in PNG); open --wallpaper |
 | v0.13.1 | Hermes Agent v0.21 skill index: ≤60-char description, `[[as_document]]` wallpaper delivery |
 | v0.15.0 | Package layout, installer and hardening work; see CHANGELOG.md |
+| v0.16.0 | Noir proof on the current toolchain (nargo + bb), stricter `verify-proof`, private receipts, Grok Bot skill and Bot brief |
 
 ### Craft / methods
 - Encodings: `hebrew_gematria` (default; native Hebrew + latin translit), `latin_extended`, `latin_mod9_v1` (compat)
@@ -60,7 +61,7 @@ compression, name paths, planetary characters, and entity seals.
 
 ### Ops
 - CLI: construct, storyboard, verify, verify-proof, inspect, png-stats, wallpaper, wizard, open (`--capsule`), learn, ledger, policy, doctor, eval, check
-- Receipts + PROPOSED ledger
+- Receipts (private records, new files `0600`) + PROPOSED ledger
 - Hermes skill install: lean tree (excludes `docs/superpowers`), post-install `validate_hermes_skill` + `check`
 - Progressive refs: `hermes-runtime-contract.md`, `proof-of-intent.md`
 - `validate_hermes_skill.py`
@@ -78,7 +79,7 @@ Product policy track (code + docs; release version/tag owned separately):
 ## Remaining / optional later
 - Scanned unique MS plate import pipeline (external SVG/JSON; plate v1 is scholarly vectorization)
 - Audio/MIDI for mantric carriers
-- Multi-frame storyboard carriers
+- Storyboard carriers beyond the shipped digest-only index (`storyboard`)
 - Rich Orchestra/Kubrick/ComfyUI adapters beyond thin interop fields
 - Deeper geometric multi-channel steganalysis
 - Optional bundled ComfyUI workflow templates (skill still does not call cloud image APIs)

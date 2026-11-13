@@ -48,6 +48,8 @@ jobs:
         run: bash scripts/install-noir-toolchain.sh
       - name: Lint (syntax errors and pyflakes)
         run: python -m ruff check .
+      - name: Version is the same everywhere
+        run: python3 scripts/set_version.py --check
       - name: Hermes frontmatter
         run: python3 scripts/validate_hermes_skill.py
       - name: Tests

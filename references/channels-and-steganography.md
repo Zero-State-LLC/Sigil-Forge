@@ -18,13 +18,15 @@ Order in `src/sigil_forge/construct.py` (`_CHANNEL_ORDER`):
 5. `rose_cross_path`  
 6. `planetary_seal` (opt-in)  
 7. `intent_digest`  
-8. `optional_ciphertext`  
-9. `svg_metadata`  
-10. `path_epsilon`  
-11. `path_order`  
-12. `metric_quantize`  
-13. `png_lsb`  
-14. `gen_seed`  
+8. `intent_commitment`  
+9. `optional_ciphertext`  
+10. `svg_metadata`  
+11. `path_epsilon`  
+12. `path_order`  
+13. `metric_quantize`  
+14. `png_lsb`  
+15. `gen_seed`  
+16. `phonetic_sigil` (opt-in)  
 
 
 ## A. Ancient / classical craft (visible structure)
@@ -44,7 +46,7 @@ See `methods-bind-runes.md`, `methods-rose-cross.md`. Not Enochian seals.
 | ID | Description | Skip reasons |
 |----|-------------|--------------|
 | `intent_digest` | SHA-256 hex of **normalized** intent | Always applied on success |
-| `optional_ciphertext` | AES-256-GCM of full intent under passphrase (PBKDF2-HMAC-SHA256); stored in **local packet** as `sealed_intent` | `no_passphrase` |
+| `optional_ciphertext` | AES-256-GCM of full intent under passphrase (PBKDF2-HMAC-SHA256 at 600,000 iterations by default, or Argon2id with optional `argon2-cffi`); stored in **local packet** as `sealed_intent` | `no_passphrase` |
 
 **Privacy:** ciphertext is for the local forge packet. v1 public PNG LSB embeds a
 **digest-only** payload — never partial ciphertext in the public raster.
@@ -101,5 +103,5 @@ artifact that fails verify.
 
 - Method params: `methods-spare.md`, `methods-kamea.md`, `methods-bind-runes.md`, `methods-rose-cross.md`  
 - Receipts / ledger: `receipts-and-ledger.md`  
-- Crypto defaults: AES-GCM + PBKDF2-HMAC-SHA256 (stdlib-friendly); Argon2id is expansion  
+- Crypto defaults: AES-GCM + PBKDF2-HMAC-SHA256, 600,000 iterations (stdlib only). Optional: Argon2id via `argon2-cffi` (`--kdf auto|argon2id`); a vetted AES-GCM backend via `cryptography` (`doctor` reports `aes_backend`)  
 - Design §5: `docs/superpowers/specs/2026-08-07-sigil-forge-design.md`

@@ -55,14 +55,15 @@ If that prints `"ok": true`, skip to 3b. If the file is missing, install.
 Installing downloads code, so ask the user to approve it first:
 
 ```bash
-git clone --depth 1 https://github.com/Zero-State-LLC/Sigil-Forge "$HOME/sigil-forge-src"
+git clone --depth 1 --branch v0.16.0 https://github.com/Zero-State-LLC/Sigil-Forge "$HOME/sigil-forge-src"
 git -C "$HOME/sigil-forge-src" rev-parse HEAD
 bash "$HOME/sigil-forge-src/install.sh" --standalone
 export SIGIL_FORGE_HOME="$HOME/.sigil-forge"
 python3 "$SIGIL_FORGE_HOME/scripts/sigil_forge.py" check
 ```
 
-Tell the user the commit that `rev-parse` printed. Continue only when `check`
+That installs the tagged release named in the first line. Tell the user that
+version and the commit that `rev-parse` printed. Continue only when `check`
 prints `"ok": true`. Always set `SIGIL_FORGE_HOME` as shown before any
 command: it keeps all output under `~/.sigil-forge/state`.
 

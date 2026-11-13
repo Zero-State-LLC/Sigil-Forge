@@ -88,7 +88,7 @@ Full path may add: `kamea_encoding`, `square`, `planetary_seal`, `proof`, `kdf`,
 
 ## Sessions
 
-Stored under `out/wizard-sessions/<id>.json` (skill out tree — not `references/`).
+Stored under `<state root>/wizard-sessions/<id>.json`, owner-only, never under `references/` (state root: see `hermes-runtime-contract.md`). An older `out/wizard-sessions/` in the skill tree is still read.
 
 ```bash
 python3 scripts/sigil_forge.py wizard --session-new --path quick

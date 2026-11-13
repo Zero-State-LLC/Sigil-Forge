@@ -42,8 +42,8 @@ the Bot ask approval for. No efficacy or authority-seal change.
 - How a value from Grok Bot's secure secret card reaches an environment
   variable is not documented where I could find it. The skill tells the Bot to
   stop if it cannot set `SIGIL_FORGE_PASSPHRASE` without exposing it.
-- The skill clones `main`, because no release tag has been published.
-  Pinning to a tag is better once one exists.
+- Resolved in 0.16.0: the skill clones the release tag, and
+  `scripts/set_version.py` keeps that tag in step with `VERSION`.
 - `AGENTS.md` still describes the repository as Hermes-only. Its wording is
   the owner's to change.
 

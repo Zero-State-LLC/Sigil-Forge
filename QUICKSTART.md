@@ -1,6 +1,6 @@
 # Sigil-Forge quickstart
 
-Run from the skill root (clone or install dir). **Current version: 0.15.0.**
+Run from the skill root (clone or install dir). **Current version: 0.16.0.**
 
 **Product:** wallpaper PNG with intent + methods sealed in-image (SF12 vault).  
 Hermes packaging: **skill** (not plugin). Default install: `~/.hermes/skills/sigil-forge`.
@@ -10,6 +10,7 @@ Hermes packaging: **skill** (not plugin). Default install: `~/.hermes/skills/sig
 python3 scripts/sigil_forge.py check
 
 # 2. Product path — forge + wallpaper vault (passphrase required for sealed intent)
+#    Omit --out to write under <state root>/products/ (README: Path resolution).
 export SIGIL_FORGE_PASSPHRASE='operator-secret'
 python3 scripts/sigil_forge.py construct \
   --intent "I maintain calm focus" \
@@ -38,7 +39,7 @@ python3 scripts/sigil_forge.py open --wallpaper \
 #   --surface phone_lock --background-method ai_generated \
 #   --background /path/to/ai-bg.png --provider host_file
 
-# 5. Privacy + Proof of Intent (prefer env over --passphrase)
+# 6. Privacy + Proof of Intent (prefer env over --passphrase)
 export SIGIL_FORGE_PASSPHRASE='operator-secret'
 python3 scripts/sigil_forge.py construct \
   --intent "I maintain calm focus" \
@@ -53,7 +54,7 @@ python3 scripts/sigil_forge.py inspect out/sigil-forge/*/glyph.svg
 python3 scripts/sigil_forge.py verify-proof out/sigil-forge/*/ \
   --passphrase "$SIGIL_FORGE_PASSPHRASE"
 
-# 6. Policy preflight + Hermes hygiene (dev)
+# 7. Policy preflight + Hermes hygiene (dev)
 python3 scripts/sigil_forge.py policy check --text "I maintain calm focus"
 python3 -m pytest -q
 python3 scripts/validate_hermes_skill.py

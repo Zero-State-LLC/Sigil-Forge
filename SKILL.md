@@ -1,7 +1,7 @@
 ---
 name: sigil-forge
 description: Forge offline intent glyphs into encrypted wallpapers.
-version: 0.15.0
+version: 0.16.0
 author: Daniel Meyer (scrimshawlife-ctrl), Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -20,8 +20,8 @@ metadata:
 # Sigil-Forge Skill
 
 Standalone Hermes skill (not a plugin). Hermes loads this directory;
-`SKILL.md` is the behavior contract. Deterministic construction lives under
-`scripts/`; the agent owns intake, mode framing, and presentation.
+`SKILL.md` is the behavior contract. Deterministic construction lives in the
+engine (`src/sigil_forge/`, run via `scripts/sigil_forge.py`); the agent owns intake, mode framing, and presentation.
 
 **Product:** the **wallpaper PNG** is the deliverable. Corpus methods forge
 immutable glyph geometry; intent and method provenance are **encrypted into
@@ -54,14 +54,15 @@ claim the sigil works, causes events, or replaces professional help.
 
 ## Prerequisites
 
-- Python 3.10+ stdlib. No required pip packages. Optional: `jsonschema`,
-  external SVG raster, `argon2-cffi`
-- Honor `HERMES_SKILL_DIR` when set; write under `--out` or
-  the active profile’s `state/sigil-forge/products/<run-id>/` (see state overrides below).
+- Python 3.10+ stdlib. No required pip packages. Optional: `PyYAML`,
+  `jsonschema`, `argon2-cffi`, `cryptography`, external SVG raster
+- Honor `HERMES_SKILL_DIR` when set; write under `--out`, else
+  `<state root>/products/<run-id>/` (state root: `SIGIL_FORGE_STATE_DIR`,
+  else `<SIGIL_FORGE_HOME>/state`, else `${HERMES_HOME:-~/.hermes}/state/sigil-forge`).
 - Optional `SIGIL_FORGE_PASSPHRASE` for sealed vault / packet (prefer env
   over `--passphrase`; argv is visible in process lists)
 - Optional `SIGIL_FORGE_BG_COMMAND` host-AI background template
-  (`{prompt_path} {out_path} {width} {height} {seed}`) — not a secret
+  (`{prompt_path} {out_path} {width} {height} {seed} {surface}`) — not a secret
 - **Never mutate `references/` during ordinary runs**
 
 ## How to Run
@@ -122,6 +123,9 @@ python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py verify out/sigil-forge/<run-i
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py wallpaper --run out/sigil-forge/<run-id> --surface phone_lock --mode focus
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py open --wallpaper out/sigil-forge/<run-id>/wallpaper/phone-lock.png --json
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py inspect out/sigil-forge/<run-id>/glyph.svg
+python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py verify-proof out/sigil-forge/<run-id>
+python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py storyboard --intent "…" --intent "…" --out out/sigil-forge
+python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py png-stats out/sigil-forge/<run-id>/glyph.png
 python3 ${HERMES_SKILL_DIR}/scripts/sigil_forge.py policy check --text "I maintain calm focus"
 python3 ${HERMES_SKILL_DIR}/scripts/validate_hermes_skill.py
 ```
@@ -182,7 +186,7 @@ Each step ends with a checkable completion criterion.
 
 ## Pitfalls
 
-1. **Inventing geometry** — monogram/kamea points come only from `scripts/`.
+1. **Inventing geometry** — monogram/kamea points come only from the engine.
 2. **Claiming stego success** when `verify` fails or a channel is `skipped`.
 3. **Leaking plaintext intent** into public SVG/PNG/wallpapers.
 4. **Treating PNG LSB as full ciphertext** — public LSB is digest-only; the
