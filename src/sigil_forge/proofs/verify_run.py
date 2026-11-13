@@ -80,7 +80,21 @@ def verify_proof_run(
         alt = run / "proofs" / Path(str(proof_file)).name
         proof_path = alt if alt.is_file() else proof_path
 
-    if manifest.get("status") == "generated" and provider_name not in ("none",):
+    bind_error = ""
+    if provider_name == "noir":
+        # A Noir proof only says "someone knows a preimage of this commitment".
+        # It speaks for this run only if that commitment and length are the
+        # ones the run's packet records; a manifest edited to carry another
+        # run's proof and commitment must not verify.
+        recorded = packet.get("intent_commitment_zk")
+        recorded = recorded if isinstance(recorded, dict) else {}
+        if (
+            not recorded.get("value")
+            or pub.get("intent_commitment_zk") != recorded.get("value")
+            or pub.get("intent_len") != recorded.get("intent_len")
+        ):
+            bind_error = "noir proof is not bound to this run's packet commitment"
+    if manifest.get("status") == "generated" and provider_name not in ("none",) and not bind_error:
         attempts.append((str(provider_name), proof_path, pub))
 
     # local attestation always preferred for offline operator verify with passphrase
@@ -90,14 +104,17 @@ def verify_proof_run(
         la = manifest["local_attestation"]
         if isinstance(la, dict) and la.get("public_inputs"):
             local_extra_pub = dict(la["public_inputs"])
-    if local_att.is_file():
+    # With an unbound Noir proof, only a real check may still pass: opening the
+    # capsule with the passphrase. The passphrase-less check reads the
+    # attestation file's own "ok" flag and must not rescue a tampered run.
+    if local_att.is_file() and not (bind_error and not passphrase):
         attempts.append(("local_capsule", local_att, local_extra_pub))
 
     if not attempts and manifest.get("status") == "skipped":
         out["detail"] = manifest.get("detail") or "proof skipped"
         return out
 
-    last_err = ""
+    last_err = bind_error
     for pname, ppath, pinputs in attempts:
         try:
             provider = get_provider(pname)

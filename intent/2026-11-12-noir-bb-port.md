@@ -15,8 +15,8 @@ and `verify-proof` checks that exact proof against the run's commitment. Both
 steps run in a private temporary copy of the circuit. CI exercises the real
 toolchain in one leg.
 
-Out of scope: the risc0 path, binding the ZK commitment more tightly inside
-`verify-proof`, on-chain verification, and any change to the commitment scheme.
+Out of scope: the risc0 path, on-chain verification, and any change to the
+commitment scheme.
 
 ## Affected users / systems
 
@@ -34,8 +34,11 @@ witness never touches the skill tree. No efficacy claim attaches to a proof.
 
 - Proofs made with circuit version 1 do not verify. None can exist from a
   current toolchain, so no migration is offered.
-- `verify-proof` takes the commitment from the run's proof manifest. Whether it
-  should also cross-check the capsule is left for a later change.
+- `verify-proof` now requires the manifest's commitment and length to equal the
+  packet's (added after independent review). It does not prove the packet
+  itself is untouched; that is what `sigil_root` and the capsule are for.
+- Without a passphrase the local attestation check is structural only
+  (issue #37). Not changed here.
 
 ## Verified / assumed claims
 

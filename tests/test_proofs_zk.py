@@ -183,7 +183,9 @@ def _fake_tools(tmp_path: Path, monkeypatch, *, execute_exit: int = 0, prove_exi
     (circuit / "src" / "main.nr").write_text("fn main() {}\n")
     seen = tmp_path / "seen"
     seen.mkdir()
-    (seen / "public_inputs").write_bytes(public_inputs_bytes(zk_commit(INTENT, NONCE)["value"]))
+    (seen / "public_inputs").write_bytes(
+        public_inputs_bytes(zk_commit(INTENT, NONCE)["value"], len(INTENT))
+    )
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     (bin_dir / "nargo").write_text(
@@ -193,6 +195,7 @@ def _fake_tools(tmp_path: Path, monkeypatch, *, execute_exit: int = 0, prove_exi
         f'  (stat -c %a Prover.toml 2>/dev/null || stat -f %Lp Prover.toml) > "{seen}/witness-mode"\n'
         f'  (stat -c %a . 2>/dev/null || stat -f %Lp .) > "{seen}/workdir-mode"\n'
         f'  cp Prover.toml "{seen}/witness-copy"\n'
+        "  cat Prover.toml >&2\n"
         "  mkdir -p target && : > target/intent_commitment.json && : > target/intent_commitment.gz\n"
         f"  exit {execute_exit}\n"
         "fi\n"
@@ -293,7 +296,7 @@ def test_noir_witness_does_not_follow_a_symlink(tmp_path, monkeypatch):
 @pytest.mark.skipif(os.name != "posix", reason="POSIX shell stand-ins")
 def test_noir_prove_fails_when_bb_reports_other_public_inputs(tmp_path, monkeypatch):
     _, seen = _fake_tools(tmp_path, monkeypatch)
-    (seen / "public_inputs").write_bytes(bytes(1024))
+    (seen / "public_inputs").write_bytes(bytes(33 * 32))
 
     res = _prove(tmp_path)
 
@@ -306,13 +309,68 @@ def test_noir_public_inputs_encoding():
     from sigil_forge.proofs.noir_provider import public_inputs_bytes
 
     value = zk_commit(INTENT, NONCE)["value"]
-    blob = public_inputs_bytes(value)
-    assert len(blob) == 32 * 32
-    assert bytes(blob[i * 32 + 31] for i in range(32)).hex() == value
-    assert all(blob[i * 32 : i * 32 + 31] == bytes(31) for i in range(32))
+    blob = public_inputs_bytes(value, 21)
+    assert len(blob) == 33 * 32
+    assert int.from_bytes(blob[:32], "big") == 21
+    body = blob[32:]
+    assert bytes(body[i * 32 + 31] for i in range(32)).hex() == value
+    assert all(body[i * 32 : i * 32 + 31] == bytes(31) for i in range(32))
     for bad in ("", "00" * 31, "zz" * 32, "00" * 32 + "\n", None, 5):
         with pytest.raises(ValueError):
-            public_inputs_bytes(bad)
+            public_inputs_bytes(bad, 21)
+    for bad_len in (0, 257, -1, "21", None, True, 21.0):
+        with pytest.raises(ValueError):
+            public_inputs_bytes(value, bad_len)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shell stand-ins")
+@pytest.mark.parametrize(("execute_exit", "prove_exit"), [(1, 0), (0, 1)])
+def test_noir_failure_detail_never_carries_tool_output(tmp_path, monkeypatch, execute_exit, prove_exit):
+    """The stand-in nargo prints the whole witness to stderr; none of it may surface."""
+    _fake_tools(tmp_path, monkeypatch, execute_exit=execute_exit, prove_exit=prove_exit)
+    res = _prove(tmp_path)
+    assert res.status == "failed"
+    assert "intent_bytes" not in res.detail and "nonce" not in res.detail
+    assert "exit 1" in res.detail
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shell stand-ins")
+def test_noir_timeout_removes_the_work_directory_and_reports_no_paths(tmp_path, monkeypatch):
+    _fake_tools(tmp_path, monkeypatch)
+    seen_dirs: list[Path] = []
+
+    def boom(argv, cwd, timeout):
+        seen_dirs.append(Path(cwd))
+        assert (Path(cwd) / "Prover.toml").is_file()
+        raise subprocess.TimeoutExpired(argv, timeout)
+
+    monkeypatch.setattr(NoirProvider, "_run", staticmethod(boom))
+    res = _prove(tmp_path)
+    assert res.status == "failed"
+    assert res.detail == "noir toolchain error: TimeoutExpired"
+    assert seen_dirs and not seen_dirs[0].exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shell stand-ins")
+def test_noir_refuses_an_intent_with_a_nul_byte(tmp_path, monkeypatch):
+    """The circuit binds the length via non-zero bytes, so NUL is not provable."""
+    _, seen = _fake_tools(tmp_path, monkeypatch)
+    res = NoirProvider().prove(
+        {"normalized_intent": "calm\x00focus", "nonce": NONCE}, {}, out_dir=tmp_path / "out"
+    )
+    assert res.status == "failed" and "NUL" in res.detail
+    assert not (seen / "workdir").exists()  # no tool was run
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shell stand-ins")
+def test_noir_failed_prove_removes_an_earlier_proof(tmp_path, monkeypatch):
+    _fake_tools(tmp_path, monkeypatch, prove_exit=1)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "intent-proof.bin").write_bytes(b"old")
+    (out / "intent-proof.vk").write_bytes(b"old")
+    assert _prove(tmp_path).status == "failed"
+    assert not (out / "intent-proof.bin").exists() and not (out / "intent-proof.vk").exists()
 
 
 def test_noir_unavailable_without_both_tools(tmp_path, monkeypatch):
@@ -331,7 +389,7 @@ def test_noir_unavailable_without_both_tools(tmp_path, monkeypatch):
     n = NoirProvider()
     assert n.available() is False
     assert _prove(tmp_path).detail == "noir_unavailable"
-    assert n.verify(tmp_path / "x", {"intent_commitment_zk": "00" * 32}) is False
+    assert n.verify(tmp_path / "x", {"intent_commitment_zk": "00" * 32, "intent_len": 1}) is False
 
 
 # ---------------------------------------------------------------------------
@@ -365,8 +423,31 @@ def test_noir_real_verify_is_bound_to_the_commitment(real_proof):
     """A valid proof must not vouch for a different commitment."""
     other = zk_commit(INTENT, b"\x02" * 32)["value"]
     n = NoirProvider()
-    assert n.verify(real_proof.proof_path, {"intent_commitment_zk": other}) is False
+    good = real_proof.public_inputs
+    assert n.verify(real_proof.proof_path, dict(good, intent_commitment_zk=other)) is False
     assert n.verify(real_proof.proof_path, {}) is False
+
+
+@needs_toolchain
+def test_noir_real_verify_is_bound_to_the_intent_length(real_proof):
+    """The published length is proven: any other value fails, as does none."""
+    n = NoirProvider()
+    good = real_proof.public_inputs
+    assert good["intent_len"] == len(INTENT)
+    for wrong in (len(INTENT) - 1, len(INTENT) + 1, 256):
+        assert n.verify(real_proof.proof_path, dict(good, intent_len=wrong)) is False
+    assert n.verify(real_proof.proof_path, {"intent_commitment_zk": good["intent_commitment_zk"]}) is False
+
+
+@needs_toolchain
+@pytest.mark.parametrize("intent", ["x", "é" * 100, "a" * 256])
+def test_noir_real_proof_for_edge_lengths(tmp_path, intent):
+    """One byte, multibyte text, and the full 256 bytes."""
+    n = NoirProvider()
+    res = n.prove({"normalized_intent": intent, "nonce": NONCE}, {}, out_dir=tmp_path)
+    assert res.status == "generated", res.detail
+    assert res.public_inputs["intent_len"] == len(intent.encode())
+    assert n.verify(res.proof_path, res.public_inputs) is True
 
 
 @needs_toolchain
@@ -384,7 +465,7 @@ def test_noir_real_verify_is_bound_to_the_proof_it_is_given(real_proof, tmp_path
 
 @needs_toolchain
 def test_noir_real_verify_ignores_a_verification_key_beside_the_proof(real_proof, tmp_path):
-    """The key is rebuilt from the installed circuit, not read from the run."""
+    """A key file next to the proof is never read: the key comes from the circuit."""
     proof = tmp_path / "intent-proof.bin"
     proof.write_bytes(Path(real_proof.proof_path).read_bytes())
     (tmp_path / "intent-proof.vk").write_bytes(b"not a key")
@@ -407,3 +488,38 @@ def test_noir_real_construct_and_verify_proof_cli(tmp_path, monkeypatch):
     out = verify_proof_run(run_dir)
     assert out["verified"] is True
     assert out["provider"] == "noir"
+
+
+@needs_toolchain
+def test_noir_real_verify_proof_refuses_another_runs_proof(tmp_path):
+    """Swapping in another run's proof and commitment must not verify this run."""
+    runs = []
+    for name, intent in (("a", "I maintain calm focus"), ("b", "I finish what I start")):
+        packet = construct_run(
+            intent, out_root=tmp_path / name, passphrase="pass-" + name, proof="zk-knowledge"
+        )
+        assert packet["proof"]["status"] == "generated", packet["proof"]["detail"]
+        runs.append(Path(packet["artifacts"]["packet_json"]).parent)
+    victim, attacker = runs
+    assert verify_proof_run(victim)["verified"] is True
+
+    (victim / "proofs" / "intent-proof.bin").write_bytes(
+        (attacker / "proofs" / "intent-proof.bin").read_bytes()
+    )
+    theirs = json.loads((attacker / "proofs" / "proof-manifest.json").read_text())
+    path = victim / "proofs" / "proof-manifest.json"
+    mine = json.loads(path.read_text())
+    for key in ("intent_commitment_zk", "intent_len"):
+        mine["public_inputs"][key] = theirs["public_inputs"][key]
+    path.write_text(json.dumps(mine))
+
+    out = verify_proof_run(victim)
+    assert out["verified"] is False
+    assert "not bound" in out["detail"]
+    # With the passphrase the run's own capsule is really opened and does verify,
+    # but as the local attestation: the swapped Noir proof is never credited.
+    with_pass = verify_proof_run(victim, passphrase="pass-a")
+    assert with_pass["verified"] is True
+    assert with_pass["provider"] == "local_capsule"
+    assert with_pass["proof_kind"] == "knowledge_of_intent"
+    assert verify_proof_run(victim, passphrase="wrong")["verified"] is False

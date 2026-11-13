@@ -3,7 +3,11 @@
 ## Statement
 
 Private inputs: padded intent bytes + 32-byte nonce  
-Public input: `SHA-256(nonce || intent_bytes[256])`
+Public inputs: the intent's byte length, and `SHA-256(nonce || intent_bytes[256])`
+
+The length is bound exactly: bytes before it must be non-zero and bytes from it
+on must be zero. An intent containing a NUL byte is therefore not provable, and
+the provider refuses it.
 
 Matches `src/sigil_forge/proofs/zk_commit.py` (`sha256-nonce-pad256-v1`).
 
@@ -57,13 +61,19 @@ bb verify -k vk/vk -p <the proof file> -i <public inputs> -t evm
 
 `verify` rebuilds the verification key from this circuit instead of trusting
 the `.vk` stored with a run, and builds the public inputs from the commitment
-it is asked about. A proof for another commitment, an altered proof, or a
-proof from a different circuit fails.
+and length it is asked about. A proof for another commitment or length, an
+altered proof, or a proof from a different circuit fails.
+
+`verify-proof` credits a Noir proof to a run only when the commitment and
+length in the proof manifest equal the ones in the run's `forge-packet.json`.
+Tool output is never copied into a result, because `nargo` can print witness
+values.
 
 ## Circuit versions
 
 - **2** (current): SHA-256 built from `std::hash::sha256_compression`, because
-  Noir 1.0 removed `std::hash::sha256`. No external dependency.
+  Noir 1.0 removed `std::hash::sha256`. No external dependency. The intent
+  length is a public input and is bound to the bytes.
 - **1**: used `std::hash::sha256` and the removed `nargo prove` / `nargo verify`.
   Its proofs do not verify with this provider.
 

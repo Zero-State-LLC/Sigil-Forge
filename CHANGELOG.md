@@ -15,7 +15,11 @@ All notable changes to this project are recorded here, newest first. The format 
 ### Changed
 
 - The Noir circuit is version 2: SHA-256 is built from the standard library's compression
-  function, because Noir 1.0 removed `std::hash::sha256`. The statement is unchanged.
+  function, because Noir 1.0 removed `std::hash::sha256`. The intent length is now a public
+  input bound to the bytes, so the published length is proven. An intent containing a NUL
+  byte is refused by the Noir path.
+- `verify-proof` credits a Noir proof only when its commitment and length equal the ones in
+  the run's packet. A failed Noir step reports an exit code, never tool output.
 - Noir proving and verifying run in a private temporary copy of the circuit. The installed
   skill tree is never written, and the witness is deleted with that copy.
 - Noir `verify` rebuilds the verification key from the installed circuit, builds the public

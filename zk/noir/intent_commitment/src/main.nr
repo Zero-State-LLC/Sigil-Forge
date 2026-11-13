@@ -1,7 +1,12 @@
 // Knowledge-of-intent circuit (v2)
 //
-// Private: intent_len, intent_bytes[256] (zero-padded), nonce[32]
-// Public:  expected_commitment[32] = SHA-256(nonce || intent_bytes)
+// Private: intent_bytes[256] (zero-padded), nonce[32]
+// Public:  intent_len, the byte length of the intent
+//          expected_commitment[32] = SHA-256(nonce || intent_bytes)
+//
+// intent_len is bound exactly: every byte before it is non-zero and every
+// byte from it on is zero. So the published length is proven, and an intent
+// cannot be confused with the same intent plus trailing zero bytes.
 //
 // Proves knowledge of a preimage for the ZK companion commitment
 // (src/sigil_forge/proofs/zk_commit.py). Domain-separated public commitment
@@ -55,7 +60,7 @@ fn sha256_288(msg: [u8; 288]) -> [u8; 32] {
 }
 
 fn main(
-    intent_len: u32,
+    intent_len: pub u32,
     intent_bytes: [u8; 256],
     nonce: [u8; 32],
     expected_commitment: pub [u8; 32],
@@ -63,10 +68,12 @@ fn main(
     // intent_len bounds
     assert(intent_len <= MAX_INTENT);
 
-    // Padding after intent_len must be zero
+    // Bytes of the intent are non-zero; padding after intent_len is zero.
     for i in 0..256 {
         if i as u32 >= intent_len {
             assert(intent_bytes[i] == 0);
+        } else {
+            assert(intent_bytes[i] != 0);
         }
     }
 
