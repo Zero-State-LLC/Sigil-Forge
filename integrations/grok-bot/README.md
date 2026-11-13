@@ -18,6 +18,12 @@ the repository root) is unchanged and stays the reference contract.
 3. Ask the Bot: "Use sigil-forge to make a phone lock-screen wallpaper for:
    I maintain calm focus." The first run asks to install the engine.
 
+## Make it a Bot of its own
+
+[`BOT.md`](BOT.md) has a name, a description and a brief to paste, for a
+dedicated Bot that does only this job, plus what to know before sharing it as
+a template.
+
 ## Why it fits
 
 A Bot's computer keeps files between tasks but drops installed packages and

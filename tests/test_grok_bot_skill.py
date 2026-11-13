@@ -188,3 +188,58 @@ def test_readme_says_what_is_not_verified():
     readme = (SKILL.parent / "README.md").read_text(encoding="utf-8")
     assert "Not verified" in readme
     assert "Add Custom Skill" in readme
+
+
+# ------------------------------------------------------------------ BOT.md
+
+BOT = SKILL.parent / "BOT.md"
+
+
+def _brief() -> str:
+    blocks = re.findall(r"```text\n(.*?)```", BOT.read_text(encoding="utf-8"), re.S)
+    assert len(blocks) == 1, "BOT.md must hold exactly one brief to paste"
+    return blocks[0]
+
+
+def test_bot_brief_and_skill_state_the_same_limits():
+    """A Bot given both must not find one permitting what the other forbids."""
+    brief, skill = _brief().lower(), _text().lower()
+    for shared in (
+        "enochian",
+        "goetic",
+        "self-harm",
+        "violence",
+        "controlling another person",
+        "exploitation",
+        "ledger promote",
+        "secure secret card",
+        "install or update the engine",
+        "open a sealed image or packet",
+        "delete a run folder",
+        "learning entry",
+        "file attachment",
+    ):
+        assert shared in brief, f"brief lacks: {shared}"
+        assert shared in skill, f"skill lacks: {shared}"
+    assert "works" in brief and "replaces professional" in brief
+    for private in ("packet", "receipts", "capsule", "proofs", "manifest"):
+        assert private in brief
+
+
+def test_bot_brief_defers_to_the_skill_and_is_safe_to_publish():
+    brief = _brief()
+    assert "sigil-forge skill" in brief
+    # Commands live in the skill only, so the two cannot drift apart.
+    assert "sigil_forge.py" not in brief and "python3" not in brief
+    # A published template is public: the brief may name the public repo only.
+    assert re.findall(r"https?://\S+", brief) == ["https://github.com/Zero-State-LLC/Sigil-Forge."]
+    assert "@" not in brief
+    assert len(brief) < 4000
+
+
+def test_bot_never_gets_a_routine():
+    assert "do not create routines" in _brief().lower()
+    page = BOT.read_text(encoding="utf-8")
+    assert "Do not add a routine" in page
+    assert "The link is public" in page
+    assert "## What is not verified" in page

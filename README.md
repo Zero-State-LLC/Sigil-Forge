@@ -73,7 +73,7 @@ bash install.sh --version
 Staged validation runs `validate_hermes_skill` + `check` before activation; contract/version are read back after activation.
 Install is a **lean skill tree**: excludes `.git`, `out/`, `.venv`, caches, `.worktrees`, and `docs/superpowers` (implementation plans are clone-only).
 
-**Grok Bot:** [`integrations/grok-bot/SKILL.md`](integrations/grok-bot/SKILL.md) is a self-contained skill for xAI's Grok Bot. It installs the same engine with `install.sh --standalone` on the Bot's computer; see [`integrations/grok-bot/README.md`](integrations/grok-bot/README.md) for how to import it and what is not yet verified.
+**Grok Bot:** [`integrations/grok-bot/SKILL.md`](integrations/grok-bot/SKILL.md) is a self-contained skill for xAI's Grok Bot. It installs the same engine with `install.sh --standalone` on the Bot's computer; see [`integrations/grok-bot/README.md`](integrations/grok-bot/README.md) for how to import it and what is not yet verified, and [`integrations/grok-bot/BOT.md`](integrations/grok-bot/BOT.md) to set it up as a dedicated Bot.
 
 **Standalone by design:** Sigil-Forge runs on its own. Hermes, Abraxas or any other host is optional: an integration reads the public output files or calls the CLI, and the engine never imports a host stack (`tests/test_standalone.py` enforces this).
 
