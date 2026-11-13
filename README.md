@@ -241,7 +241,7 @@ Public artifacts can bind to a privacy-preserving **intent commitment** without 
 | `intent_commitment` | Salted per-run commitment (value public; **nonce private**) |
 | `intent_commitment_zk` | Fixed-width companion for optional circuits |
 | `sigil_root` | Merkle root over public leaves (no self-reference) |
-| `forge-manifest.json` | Public config/outputs hashed into root |
+| `forge-manifest.json` | Config/outputs hashed into root. Only its digest is public; the file is **private** (carries intent-derived method data) |
 | `intent-capsule.json` | Sealed witness (intent + nonce) behind passphrase |
 | SF11 stego | Digest + root carrier; dual-verify with SF1 |
 | `inspect` / `verify-proof` | Public inspection / proof status (no default plaintext dump) |
@@ -330,7 +330,7 @@ See [references/wallpaper-framework.md](references/wallpaper-framework.md) · [r
 |--------|------|
 | `glyph.svg` / `glyph.png` | Master geometry; offline PNG + LSB (SF1 / SF11) |
 | `forge-packet.json` (+ `.md`) | Channels, methods, ontology, digests, commitment, `sigil_root` |
-| `forge-manifest.json` | Public forge config/outputs (hashed into root; no self-root) |
+| `forge-manifest.json` | Forge config/outputs (hashed into root; no self-root). **Private**: carries intent-derived method data |
 | `artifact-root.json` | Merkle leaves + `sigil_root` |
 | `intent-capsule.json` | Sealed witness when passphrase + proof/seal path |
 | `run-receipt.json` | Run integrity receipt. **Private**: carries intent-derived method data |

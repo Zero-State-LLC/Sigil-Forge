@@ -14,7 +14,7 @@ privacy-preserving commitment. They never claim the sigil “works.”
 | `intent_commitment` | Yes (value only) | Salted per-run commitment; **nonce stays private** |
 | `intent_commitment_zk` | Yes (value only) | Fixed-width companion for optional circuits |
 | `sigil_root` | Yes | Merkle root over public leaves (no self-reference) |
-| `forge-manifest.json` | Yes | Public config/outputs; hashed into root; **no** `sigil_root` field |
+| `forge-manifest.json` | Digest only | Config/outputs; its digest is a leaf of the root. The file is **private**: its `methods` block is derived from the intent. **No** `sigil_root` field |
 | `intent-capsule.json` | Shell public | Sealed witness (intent + nonce) behind passphrase |
 | SF11 stego | Public media | Digest + root carrier (dual-verify with SF1) |
 
