@@ -73,6 +73,8 @@ bash install.sh --version
 Staged validation runs `validate_hermes_skill` + `check` before activation; contract/version are read back after activation.
 Install is a **lean skill tree**: excludes `.git`, `out/`, `.venv`, caches, `.worktrees`, and `docs/superpowers` (implementation plans are clone-only).
 
+**Grok Bot:** [`integrations/grok-bot/SKILL.md`](integrations/grok-bot/SKILL.md) is a self-contained skill for xAI's Grok Bot. It installs the same engine with `install.sh --standalone` on the Bot's computer; see [`integrations/grok-bot/README.md`](integrations/grok-bot/README.md) for how to import it and what is not yet verified.
+
 **Standalone by design:** Sigil-Forge runs on its own. Hermes, Abraxas or any other host is optional: an integration reads the public output files or calls the CLI, and the engine never imports a host stack (`tests/test_standalone.py` enforces this).
 
 **Requirements:** Python 3.10+ (stdlib). No pip packages for the core path. Optional: `jsonschema` for stricter packet validation; optional `argon2-cffi` for Argon2id sealing; optional `cryptography` makes AES-GCM use a vetted library instead of the built-in pure-Python implementation (sealed files are interchangeable; `doctor` shows `aes_backend`).
