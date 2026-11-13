@@ -211,7 +211,7 @@ export SIGIL_FORGE_PASSPHRASE='operator-secret'
 |-----------|------------------|----------|
 | `none` | No | Still emits commitment + `sigil_root` (no capsule) |
 | `commitment` | Yes | Intent capsule + local knowledge attestation |
-| `zk-knowledge` | Yes | Local attestation + optional Noir (skips if no `nargo`) |
+| `zk-knowledge` | Yes | Local attestation + optional Noir proof (skips unless `nargo` and `bb` are installed; `scripts/install-noir-toolchain.sh`) |
 | `zk-forge` | No | Optional risc0/zkVM path (skips if guest unavailable) |
 
 Open sealed product / workspace:

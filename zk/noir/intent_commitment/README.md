@@ -7,40 +7,75 @@ Public input: `SHA-256(nonce || intent_bytes[256])`
 
 Matches `src/sigil_forge/proofs/zk_commit.py` (`sha256-nonce-pad256-v1`).
 
-## Status: experimental
-
-This path targets the older `nargo prove` / `nargo verify` commands. Current
-Noir releases moved proving and verification out of nargo into a separate
-backend (`nargo execute` for the witness, then `bb prove` / `bb verify`), so
-with a current toolchain `--proof zk-knowledge` records `status: failed` for
-the Noir step and falls back to the local capsule attestation. `verify` only
-accepts a proof that is byte-identical to the one in this directory, because
-`nargo verify` checks the directory, not a file you pass it. Treat a Noir
-result as provenance only until the provider is ported.
+A proof shows that whoever made it knew an intent and nonce behind the public
+commitment. It is provenance only: it says nothing about what a sigil does.
 
 ## Requirements
 
-- [nargo](https://noir-lang.org/) installed
-- Core Sigil-Forge Python path works **without** nargo
+Optional. Core Sigil-Forge works **without** any of this.
 
-## Build / prove / verify
+- `nargo` 1.0.0 (Noir compiler; solves the witness)
+- `bb` 6.0.0 (Barretenberg; proves and verifies)
+
+Both are needed: Noir moved proving and verification out of `nargo`. Other
+versions are untested, and `nargo` and `bb` must be a matching pair.
 
 ```bash
-cd zk/noir/intent_commitment
-nargo compile
-# Prover.toml is written by src/sigil_forge/proofs/noir_provider.py
-nargo prove
-nargo verify
+bash scripts/install-noir-toolchain.sh
 ```
+
+That script downloads the official release archives, checks pinned SHA-256
+hashes, and installs to `~/.nargo/bin` and `~/.bb`. The engine looks there as
+well as on `PATH`. The first proof on a machine makes `bb` download its
+reference string to `~/.bb-crs`; nothing else uses the network.
+
+## How the provider runs it
+
+`src/sigil_forge/proofs/noir_provider.py` copies `Nargo.toml` and `src/` to a
+private temporary directory for every call and deletes it afterwards. This
+directory is never written, so there is no `target/` or `Prover.toml` here.
+
+Prove:
+
+```bash
+nargo execute                      # Prover.toml -> target/intent_commitment.gz
+bb prove -b target/intent_commitment.json -w target/intent_commitment.gz \
+  -o out -t evm --write_vk
+```
+
+The run keeps `proofs/intent-proof.bin` and `proofs/intent-proof.vk`. The
+witness (`Prover.toml`, plaintext intent and nonce) is created `0600` and
+removed with the temporary directory, on success and on failure.
+
+Verify:
+
+```bash
+nargo compile
+bb write_vk -b target/intent_commitment.json -o vk -t evm
+bb verify -k vk/vk -p <the proof file> -i <public inputs> -t evm
+```
+
+`verify` rebuilds the verification key from this circuit instead of trusting
+the `.vk` stored with a run, and builds the public inputs from the commitment
+it is asked about. A proof for another commitment, an altered proof, or a
+proof from a different circuit fails.
+
+## Circuit versions
+
+- **2** (current): SHA-256 built from `std::hash::sha256_compression`, because
+  Noir 1.0 removed `std::hash::sha256`. No external dependency.
+- **1**: used `std::hash::sha256` and the removed `nargo prove` / `nargo verify`.
+  Its proofs do not verify with this provider.
 
 ## Integration
 
 ```bash
 python3 scripts/sigil_forge.py construct \
   --intent "…" --proof zk-knowledge --passphrase via env
-python3 scripts/sigil_forge.py verify-proof out/sigil-forge/<run-id>
+python3 scripts/sigil_forge.py verify-proof <run directory>
 ```
 
-If nargo is missing, construct still succeeds and the proof-manifest records
-`status: skipped` / `detail: noir_unavailable`. A local capsule knowledge
-attestation may still be generated for offline operator verification (not ZK).
+If either tool is missing, construct still succeeds and the proof-manifest
+records `status: skipped` / `detail: noir_unavailable`. A local capsule
+knowledge attestation is still generated for offline operator verification
+(not ZK).
