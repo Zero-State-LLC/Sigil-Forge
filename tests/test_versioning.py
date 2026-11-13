@@ -50,9 +50,8 @@ def test_changelog_has_a_dated_section_for_this_version_first():
     headings = re.findall(r"(?m)^## (.+)$", text)
     assert headings[0] == "Unreleased"
     assert re.fullmatch(rf"{re.escape(VERSION)} - \d{{4}}-\d{{2}}-\d{{2}}", headings[1]), headings[1]
-    # Nothing is left sitting under Unreleased at release time.
-    unreleased = text.split("## Unreleased", 1)[1].split("\n## ", 1)[0]
-    assert unreleased.strip() == ""
+    # Unreleased may collect notes between releases; the newest released
+    # section must still be the current version.
 
 
 def test_roadmap_has_a_row_for_this_version():

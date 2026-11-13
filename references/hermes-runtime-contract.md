@@ -64,7 +64,8 @@ read for compatibility only.
 | `wizard` | Guided interview: `--script`, `--next`, `--session-new`, `--apply`; full path includes `proof`/`kdf` |
 | `construct` | Full forge (expert / non-wizard); optional `--proof` / `--kdf` / `--seal-packet` |
 | `verify` | Recover digest / integrity from SVG or PNG |
-| `storyboard` | One forge run per intent (1 to 12), with a digest-only index |
+| `storyboard` | One forge run per intent (1 to 12), with a digest-only index and a sheet SVG that embeds every glyph |
+| `storyboard-verify` | Check a board from its index or from its sheet alone |
 | `verify-proof` | Check local/Noir/risc0 proof manifests for a run; the local attestation needs the passphrase |
 | `inspect` | Public PoI/SF11 surfaces without disclosing intent |
 | `png-stats` | Descriptive LSB statistics for a PNG; not a detector |

@@ -359,15 +359,43 @@ python3 scripts/sigil_forge.py storyboard \
 
 Every intent passes the same safety and authority-seal checks as `construct` before anything
 is forged; one refusal fails the whole board and writes nothing. Each frame is an ordinary run
-dir. The index `storyboards/storyboard-<board_id>.json` holds digests and roots only (no intent
-text). `board_id` hashes the ordered digests, so order matters. File frames come before
+dir. Two files tie the frames together, both without intent text:
+
+- `storyboards/storyboard-<board_id>.json`, the index: digests and roots only.
+- `storyboards/storyboard-<board_id>.svg`, the sheet: one SVG that embeds every frame's glyph
+  byte for byte, in order. It carries the whole board and holds only what a glyph already
+  shows publicly: digests and roots. An intent digest is an unsalted hash, so a short or
+  common intent can be guessed from it, here as in any glyph.
+
+`board_id` hashes the ordered digests, so order matters. `board_root` commits to the ordered
+frames (digest, root and glyph bytes), so a reordered, swapped or edited frame changes it.
+
+```bash
+python3 scripts/sigil_forge.py storyboard-verify <out>/storyboards/storyboard-<board_id>.svg   # the sheet alone
+python3 scripts/sigil_forge.py storyboard-verify <out>/storyboards/storyboard-<board_id>.json  # index + run folders + sheet
+```
+
+`storyboard-verify` proves a board is consistent: its frames belong together and are unchanged
+since it was written. A sheet must be exactly what the engine writes, so a comment, a script or
+an extra image in the file fails it.
+
+It does not by itself prove this is the board a particular person made, because anyone can
+drop or reorder frames and write a new consistent board. To prove that, get the `board_root`
+from them through a channel you trust and pass it:
+
+```bash
+python3 scripts/sigil_forge.py storyboard-verify <sheet-or-index> --expect-root <board_root>
+```
+
+The result then has `anchored: true`. File frames come before
 `--intent` frames. Options: `--out`, `--passphrase` (prefer env), `--seal-packet`.
 
 ## CLI overview
 
 ```text
 construct     Forge multi-channel sigil + packet (+ optional --proof)
-storyboard    One forge run per intent (1-12) + digest-only index
+storyboard    One forge run per intent (1-12) + digest-only index + sheet
+storyboard-verify  Check a board from its index or its sheet
 verify        Recover intent digest (+ sigil_root when SF11)
 inspect       Public carrier inspection (digest/root; no plaintext)
 png-stats     LSB-plane statistics of a PNG (descriptive; not a detector)

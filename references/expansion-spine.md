@@ -60,7 +60,7 @@ compression, name paths, planetary characters, and entity seals.
 - One-shot: `construct --wallpaper` (presentation via `--wp-mode`)
 
 ### Ops
-- CLI: construct, storyboard, verify, verify-proof, inspect, png-stats, wallpaper, wizard, open (`--capsule`), learn, ledger, policy, doctor, eval, check
+- CLI: construct, storyboard, storyboard-verify, verify, verify-proof, inspect, png-stats, wallpaper, wizard, open (`--capsule`), learn, ledger, policy, doctor, eval, check
 - Receipts (private records, new files `0600`) + PROPOSED ledger
 - Hermes skill install: lean tree (excludes `docs/superpowers`), post-install `validate_hermes_skill` + `check`
 - Progressive refs: `hermes-runtime-contract.md`, `proof-of-intent.md`
@@ -79,7 +79,7 @@ Product policy track (code + docs; release version/tag owned separately):
 ## Remaining / optional later
 - Scanned unique MS plate import pipeline (external SVG/JSON; plate v1 is scholarly vectorization)
 - Audio/MIDI for mantric carriers
-- Storyboard carriers beyond the shipped digest-only index (`storyboard`)
+- Storyboard carriers beyond the shipped index and sheet SVG (for example a raster sheet or per-frame wallpapers)
 - Rich Orchestra/Kubrick/ComfyUI adapters beyond thin interop fields
 - Deeper geometric multi-channel steganalysis
 - Optional bundled ComfyUI workflow templates (skill still does not call cloud image APIs)
