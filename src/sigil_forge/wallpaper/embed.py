@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from sigil_forge.stego_png import DIGEST_LEN, embed_lsb, pack_payload, write_rgb_png
-from sigil_forge.stego_png import read_rgb_png
+from sigil_forge.stego_png import DIGEST_LEN, pack_payload
+from sigil_forge.stego_png import embed_lsb_rgb, read_rgb_png
 from sigil_forge.wallpaper.seed import wallpaper_payload
 
 
@@ -77,8 +77,7 @@ def embed_binding(
                 return None
             payload = pack_payload(raw)
 
-        clean = write_rgb_png(w, h, rgb)
-        out = embed_lsb(clean, payload)
+        out = embed_lsb_rgb(w, h, rgb, payload)
         png_path.write_bytes(out)
         from sigil_forge.wallpaper.seed import file_sha256
 

@@ -47,23 +47,34 @@ def procedural_background(
     }.get(theme, (28, 28, 30))
 
     buf = bytearray(width * height * 3)
-    # Soft vertical gradient + seeded noise speckles
+    # Soft vertical gradient + seeded noise speckles.
+    #
+    # Each row is one flat colour, written in a single slice. Only the sparse
+    # speckles (about one pixel in a hundred) are then touched one by one.
+    # The output is byte-for-byte what the per-pixel loop this replaced
+    # produced; that loop called min and max six times for every pixel.
+    threshold = int(complexity * 40) if complexity > 0.05 else 0
+    stride = width * 3
     for y in range(height):
         t = y / max(height - 1, 1)
         br = int(bias[0] * (0.7 + 0.5 * (1 - t)))
         bg = int(bias[1] * (0.7 + 0.45 * t))
         bb = int(bias[2] * (0.75 + 0.4 * (1 - abs(t - 0.4))))
+        row = y * stride
+        buf[row : row + stride] = (
+            bytes((max(0, min(255, br)), max(0, min(255, bg)), max(0, min(255, bb)))) * width
+        )
+        if threshold <= 0:
+            continue
+        base = seed + y * 668265263
         for x in range(width):
-            n = 0
-            if complexity > 0.05:
-                # sparse noise
-                h = (seed + x * 374761393 + y * 668265263) & 0xFFFFFFFF
-                if (h % 1000) < int(complexity * 40):
-                    n = (h >> 8) % 12 - 6
-            i = (y * width + x) * 3
-            buf[i] = max(0, min(255, br + n))
-            buf[i + 1] = max(0, min(255, bg + n))
-            buf[i + 2] = max(0, min(255, bb + n))
+            h = (base + x * 374761393) & 0xFFFFFFFF
+            if h % 1000 < threshold:
+                n = (h >> 8) % 12 - 6
+                i = row + x * 3
+                buf[i] = max(0, min(255, br + n))
+                buf[i + 1] = max(0, min(255, bg + n))
+                buf[i + 2] = max(0, min(255, bb + n))
 
     # Large soft radial quiet field for sigil (slightly lighter)
     return bytes(buf)

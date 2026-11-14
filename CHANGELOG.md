@@ -36,6 +36,13 @@ All notable changes to this project are recorded here, newest first. The format 
 - `open` on a `.png` no longer needs `--wallpaper`.
 - `ledger --limit 0` (or less) returns nothing. It used to return everything.
 
+### Performance
+
+- Wallpapers are made faster with identical output. The background is filled a row at a time
+  and only the sparse speckles are set one by one; the old loop called `min` and `max` six
+  times for every pixel. An image that had just been decoded is no longer encoded and decoded
+  again before a payload is embedded.
+
 ### Fixed
 
 - Unexpected errors no longer print a Python traceback. The CLI reports one JSON line and exits

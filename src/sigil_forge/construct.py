@@ -752,13 +752,12 @@ def run(
                 )
             png_path = staging / "glyph.png"
             if png_path.is_file():
-                from sigil_forge.stego_png import embed_lsb, read_rgb_png, write_rgb_png
+                from sigil_forge.stego_png import embed_lsb_rgb, read_rgb_png
 
                 raw_png = png_path.read_bytes()
                 w, h, rgb = read_rgb_png(raw_png)
-                clean = write_rgb_png(w, h, rgb)
                 payload = pack_sf11(intent_digest=digest, sigil_root=sigil_root)
-                png_path.write_bytes(embed_lsb(clean, payload))
+                png_path.write_bytes(embed_lsb_rgb(w, h, rgb, payload))
         except Exception:  # noqa: BLE001 — carriers optional; root still in packet
             pass
 
