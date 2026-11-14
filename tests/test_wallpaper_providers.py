@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+import pytest
 
 from sigil_forge.construct import run as construct_run
 from sigil_forge.stego_png import write_rgb_png
@@ -163,16 +164,14 @@ def test_require_ai_fails_without_host(tmp_path: Path):
         kamea_encoding="latin_mod9_v1",
     )
     run_dir = Path(packet["artifacts"]["run_dir"])
-    try:
+    with pytest.raises(ValueError, match="ai_generated required"):
         build_wallpaper(
             run_dir,
             surface="phone_lock",
             background_method="ai_generated",
             require_ai=True,
         )
-        assert False, "expected ValueError"
-    except ValueError as exc:
-        assert "ai_generated required" in str(exc)
+
 
 
 def test_construct_wallpaper_one_shot(tmp_path: Path):

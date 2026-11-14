@@ -52,14 +52,18 @@ def test_check_requires_schemas_and_modules():
     assert payload.get("description_chars", 99) <= 60
 
 
-def test_check_does_not_pollute_skill_out(tmp_path: Path, monkeypatch):
-    """Dry construct during check must not write skill-root receipt logs."""
+def test_check_does_not_pollute_skill_out(tmp_path: Path):
+    """The dry construct inside `check` must not write under the skill tree."""
     import os
 
-    # Point HERMES_SKILL_DIR at a copy-like root that has no out yet
-    # (use real tree but isolate by checking receipt log is not required;
-    #  stronger: run with HERMES_SKILL_DIR=tmp symlink-ish via env only for paths)
-    out_before = list((ROOT / "out").rglob("*")) if (ROOT / "out").exists() else []
+    def snapshot() -> list[tuple[str, int]]:
+        out = ROOT / "out"
+        if not out.exists():
+            return []
+        return sorted((str(p.relative_to(out)), p.stat().st_size) for p in out.rglob("*"))
+
+    before = snapshot()
+    existed = (ROOT / "out").exists()
     r = subprocess.run(
         [sys.executable, str(CLI), "check"],
         capture_output=True,
@@ -68,12 +72,6 @@ def test_check_does_not_pollute_skill_out(tmp_path: Path, monkeypatch):
         env={**os.environ, "HERMES_SKILL_DIR": str(ROOT)},
     )
     assert r.returncode == 0, r.stderr + r.stdout
-    # No new run-receipts.jsonl under skill out solely from check — if file exists,
-    # its mtime may predate; assert check payload succeeded without requiring out/
-    payload = json.loads(r.stdout)
-    assert payload["ok"] is True
-    # After check with write_receipt=False, constructing in temp should not
-    # require creating ROOT/out/sigil-forge for the check itself
-    log = ROOT / "out" / "sigil-forge" / "run-receipts.jsonl"
-    # Soft: if log grew only from other tests, skip; hard gate is install path test
-    _ = out_before, log
+    assert json.loads(r.stdout)["ok"] is True
+    assert (ROOT / "out").exists() == existed
+    assert snapshot() == before

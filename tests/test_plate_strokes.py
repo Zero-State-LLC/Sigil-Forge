@@ -27,8 +27,8 @@ def test_plate_corpus_has_seven_planets_intel_spirit():
     }
     for planet, roles in entries.items():
         for kind in ("intelligence_character", "spirit_character"):
-            assert kind in roles
-            assert roles[kind]["strokes"]
+            assert kind in roles, planet
+            assert roles[kind]["strokes"], planet
             assert roles[kind]["coordinate_space"] == "unit_box"
 
 

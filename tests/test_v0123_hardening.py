@@ -166,14 +166,14 @@ def test_open_capsule_wrong_passphrase(tmp_path: Path):
     assert err["ok"] is False
 
 
-def test_risc0_in_registry_and_skips():
+def test_risc0_in_registry_and_skips(tmp_path):
     names = {p["name"] for p in list_providers()}
     assert "risc0" in names
     r0 = Risc0Provider()
     res = r0.prove(
         {"normalized_intent": "i maintain calm focus"},
         {"intent_digest": "00" * 32},
-        out_dir=Path("/tmp/sf-risc0-test"),
+        out_dir=tmp_path / "risc0",
     )
     assert res.status in ("generated", "skipped", "failed")
     if not r0.available():

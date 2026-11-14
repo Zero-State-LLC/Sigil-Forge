@@ -82,9 +82,8 @@ def test_construct_packet_fields_and_channels(tmp_path: Path):
     assert by_id["intent_digest"]["status"] == "applied"
     assert by_id["optional_ciphertext"]["status"] == "skipped"
     # gen_seed skipped unless construct(..., write_polish=True)
-    assert by_id["gen_seed"]["status"] in ("skipped", "applied")
-    if by_id["gen_seed"]["status"] == "skipped":
-        assert "polish" in by_id["gen_seed"]["detail"]
+    assert by_id["gen_seed"]["status"] == "skipped"
+    assert "polish" in by_id["gen_seed"]["detail"]
 
 
 def test_construct_with_passphrase_seals(tmp_path: Path):
@@ -154,5 +153,5 @@ def test_verify_expected_digest_and_format(tmp_path: Path):
     assert digest[8:16] in text
     v = verify_run(svg)
     assert v["ok"] is True
-    if v.get("metrics"):
-        assert digest[:8] in v["metrics"] or v["metrics"][0] == digest[:8]
+    assert v["metrics"], "verify must report the metric values it read"
+    assert digest[:8] in v["metrics"]

@@ -135,13 +135,13 @@ def test_verify_proof_cli(tmp_path: Path):
     assert out["verified"] is True
 
 
-def test_noir_provider_skipped_without_nargo():
+def test_noir_provider_skipped_without_nargo(tmp_path):
     n = NoirProvider()
     # available depends on host; prove should not crash
     res = n.prove(
         {"normalized_intent": "i maintain calm focus", "nonce": b"\x01" * 32},
         {"intent_commitment_zk": "00" * 32},
-        out_dir=Path("/tmp/sf-noir-test"),
+        out_dir=tmp_path / "noir",
     )
     assert res.status in ("generated", "skipped", "failed")
     if not n.available():
@@ -398,6 +398,18 @@ def test_noir_unavailable_without_both_tools(tmp_path, monkeypatch):
 
 _REAL = NoirProvider().available()
 needs_toolchain = pytest.mark.skipif(not _REAL, reason="nargo and bb not installed")
+
+
+def test_noir_toolchain_is_present_where_it_is_required():
+    """CI's optional leg sets SIGIL_FORGE_REQUIRE_NOIR=1.
+
+    The real prove and verify tests below skip when the toolchain is missing,
+    which is right on a developer machine. In CI that skip would be silent:
+    drop the install step and everything stays green with the Noir path
+    untested. With the variable set, a missing toolchain fails here instead.
+    """
+    if os.environ.get("SIGIL_FORGE_REQUIRE_NOIR"):
+        assert _REAL, "SIGIL_FORGE_REQUIRE_NOIR is set but nargo and bb are not installed"
 
 
 @pytest.fixture(scope="module")

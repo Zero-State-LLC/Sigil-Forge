@@ -1,3 +1,5 @@
+import pytest
+
 from sigil_forge.policy_lint import (
     detect_authority_seal_request,
     lint_efficacy_text,
@@ -32,8 +34,7 @@ def test_authority_allows_intent_language():
 
 
 def test_assert_no_efficacy_raises():
-    try:
+    with pytest.raises(ValueError) as caught:
         assert_no_efficacy("guarantees results every time", field="framing_notes")
-        assert False, "expected ValueError"
-    except ValueError as e:
-        assert "framing_notes" in str(e) or "efficacy" in str(e).lower()
+    message = str(caught.value)
+    assert "framing_notes" in message or "efficacy" in message.lower()
