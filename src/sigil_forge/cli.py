@@ -288,6 +288,26 @@ def cmd_construct(args: argparse.Namespace) -> int:
 
     # Explicit --passphrase wins over SIGIL_FORGE_PASSPHRASE when both set.
     passphrase = resolve_passphrase(args.passphrase)
+    if (
+        getattr(args, "wallpaper", False)
+        and getattr(args, "embed", "auto") == "vault"
+        and not passphrase
+    ):
+        # Refuse before forging: failing afterwards would leave a finished run
+        # and a wallpaper with nothing sealed in it.
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": (
+                        "--embed vault needs a passphrase (SIGIL_FORGE_PASSPHRASE or "
+                        "--passphrase); use --embed auto for an unsealed wallpaper"
+                    ),
+                }
+            ),
+            file=sys.stderr,
+        )
+        return 1
     try:
         packet = construct_run(
             args.intent,
@@ -544,16 +564,21 @@ def cmd_open(args: argparse.Namespace) -> int:
         from sigil_forge.crypto_payload import intent_digest
         from sigil_forge.normalize import normalize_intent
 
-        if not isinstance(claimed, str) or not claimed:
-            return ""  # nothing to compare against (older file)
+        if not isinstance(claimed, str) or len(claimed) != 64:
+            # Every packet, capsule and vault has carried this field since the
+            # first release. Without it there is nothing to check against, and
+            # deleting it must not be a way around the check.
+            return "this file has no intent_digest to check the decrypted intent against"
         candidates = []
         if isinstance(normalized, str) and normalized:
             candidates.append(normalized)
-        if isinstance(intent, str) and intent:
+        if isinstance(intent, str) and intent.strip():
             candidates.append(normalize_intent(intent))
         if not candidates:
             return "the sealed data holds no intent"
-        if all(intent_digest(c) != claimed.lower() for c in candidates):
+        # Both the intent and its normalized form must be this file's intent:
+        # the text printed is the intent, so matching on one alone is not enough.
+        if any(intent_digest(c) != claimed.lower() for c in candidates):
             return (
                 "the decrypted intent does not match this file's intent_digest; "
                 "the sealed part belongs to a different run"

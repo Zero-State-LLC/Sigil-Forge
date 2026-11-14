@@ -5,7 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from sigil_forge.safe_io import MAX_PNG_FILE_BYTES, MAX_SVG_BYTES, read_regular, read_text
+from sigil_forge.safe_io import (
+    MAX_JSON_BYTES,
+    MAX_PNG_FILE_BYTES,
+    MAX_SVG_BYTES,
+    read_head,
+    read_regular,
+    read_text,
+)
 from sigil_forge.stego_svg import extract as extract_svg
 
 
@@ -55,7 +62,9 @@ def inspect_path(path: Path | str) -> dict[str, Any]:
             if packet_path.is_file():
                 import json
 
-                packet = json.loads(packet_path.read_text(encoding="utf-8"))
+                packet = json.loads(read_text(packet_path, MAX_JSON_BYTES))
+                if not isinstance(packet, dict):
+                    raise ValueError("forge-packet.json is not an object")
                 out["carrier"] = "run"
                 out["intent_digest"] = packet.get("intent_digest")
                 ic = packet.get("intent_commitment") or {}
@@ -82,15 +91,9 @@ def inspect_path(path: Path | str) -> dict[str, Any]:
 
 
 def _looks_png(p: Path) -> bool:
-    try:
-        return p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
-    except OSError:
-        return False
+    return read_head(p, 8) == b"\x89PNG\r\n\x1a\n"
 
 
 def _looks_svg(p: Path) -> bool:
-    try:
-        head = p.read_text(encoding="utf-8", errors="ignore")[:200].lower()
-        return "<svg" in head
-    except OSError:
-        return False
+    # Only the first bytes are read: sniffing must not load a huge file.
+    return b"<svg" in read_head(p, 256).lower()

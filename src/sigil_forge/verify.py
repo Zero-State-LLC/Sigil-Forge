@@ -6,7 +6,13 @@ import re
 from pathlib import Path
 from typing import Any
 
-from sigil_forge.safe_io import MAX_PNG_FILE_BYTES, MAX_SVG_BYTES, read_regular, read_text
+from sigil_forge.safe_io import (
+    MAX_PNG_FILE_BYTES,
+    MAX_SVG_BYTES,
+    read_head,
+    read_regular,
+    read_text,
+)
 from sigil_forge.stego_svg import expected_epsilon_bits
 from sigil_forge.stego_svg import extract as extract_svg
 
@@ -308,14 +314,11 @@ def run(
     if suffix == ".png":
         return _verify_png(path, expected_digest)
     # Try SVG text first (some paths lack extension)
-    try:
-        head = path.read_bytes()[:256]
-        if b"<svg" in head.lower() or b"<?xml" in head:
-            return _verify_svg(path, expected_digest)
-        if head.startswith(b"\x89PNG"):
-            return _verify_png(path, expected_digest)
-    except OSError:
-        pass
+    head = read_head(path, 256)  # sniff only; never loads the whole file
+    if b"<svg" in head.lower() or b"<?xml" in head:
+        return _verify_svg(path, expected_digest)
+    if head.startswith(b"\x89PNG"):
+        return _verify_png(path, expected_digest)
     return _apply_expected(
         {
             "ok": False,

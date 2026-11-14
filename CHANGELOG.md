@@ -13,7 +13,9 @@ All notable changes to this project are recorded here, newest first. The format 
 - `verify-proof` no longer verifies a capsule and proofs copied in from another run. Every proof
   must name the commitment and root in this run's own packet.
 - `open` checks what it decrypts against the file's own `intent_digest`. A packet or capsule
-  carrying another run's sealed part is refused instead of returning the wrong intent.
+  carrying another run's sealed part is refused instead of returning the wrong intent. A file
+  with no `intent_digest` is refused too. The wallpaper pipeline makes the same check before it
+  seals a vault.
 - Crafted files can no longer stall or exhaust the readers. A 4 MB SVG of unterminated tags
   kept `verify` busy for over two minutes and now takes a fraction of a second; a 300 KB PNG
   claiming 100 megapixels used over a gigabyte and is now refused. Every command reads files

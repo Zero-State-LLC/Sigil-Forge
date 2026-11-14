@@ -441,9 +441,16 @@ def run(
             if attempt > 1000:
                 raise RuntimeError("could not find a free run folder name") from None
             rid = f"{base_rid}-{attempt}"
-    staging = Path(
-        tempfile.mkdtemp(prefix=f".sf-staging-{rid}-", dir=str(root))
-    )
+    try:
+        staging = Path(
+            tempfile.mkdtemp(prefix=f".sf-staging-{rid}-", dir=str(root))
+        )
+    except BaseException:
+        try:
+            os.rmdir(final_dir)  # do not leave the claimed folder behind
+        except OSError:
+            pass
+        raise
 
     try:
         svg_path = staging / "glyph.svg"
@@ -948,8 +955,10 @@ def run(
             os.rename(staging, final_dir)
         except OSError:
             # Windows cannot rename onto an existing folder, even an empty one.
-            os.rmdir(final_dir)
-            os.rename(staging, final_dir)
+            # Move the contents in instead, so the claim is never given up.
+            for entry in sorted(staging.iterdir()):
+                os.rename(entry, final_dir / entry.name)
+            os.rmdir(staging)
         staging = None  # ownership transferred
         return packet
     finally:

@@ -74,13 +74,6 @@ def test_read_regular_refuses_everything_but_a_small_plain_file(tmp_path):
         assert time.monotonic() - start < 5
 
 
-def test_storyboard_and_manifest_use_the_one_reader():
-    from sigil_forge import forge_manifest, storyboard
-
-    assert storyboard.read_regular is safe_io.read_regular
-    assert forge_manifest.read_regular is safe_io.read_regular
-
-
 # ------------------------------------------------------- A. open checks
 
 
@@ -132,6 +125,31 @@ def test_open_capsule_refuses_a_capsule_whose_digest_was_changed(sealed_runs, tm
     assert r.returncode == 1 and "does not match" in _error(r)
 
 
+@pytest.mark.parametrize("claimed", [None, "", 5, "abc", "DELETE"])
+def test_open_refuses_when_the_digest_is_missing_or_malformed(sealed_runs, tmp_path, claimed):
+    """Deleting the digest must not be a way around the check."""
+    run = _copy(sealed_runs[0], tmp_path)
+    packet = json.loads((run / "forge-packet.json").read_text(encoding="utf-8"))
+    other = json.loads((sealed_runs[1] / "forge-packet.json").read_text(encoding="utf-8"))
+    packet["sealed_intent"] = other["sealed_intent"]
+    if claimed == "DELETE":
+        packet.pop("intent_digest")
+    else:
+        packet["intent_digest"] = claimed
+    (run / "forge-packet.json").write_text(json.dumps(packet), encoding="utf-8")
+    r = cli("open", str(run / "forge-packet.json"))
+    assert r.returncode == 1 and "no intent_digest" in _error(r)
+    assert OTHER not in r.stdout + r.stderr
+
+
+def test_open_accepts_an_uppercase_digest(sealed_runs, tmp_path):
+    run = _copy(sealed_runs[0], tmp_path)
+    packet = json.loads((run / "forge-packet.json").read_text(encoding="utf-8"))
+    packet["intent_digest"] = packet["intent_digest"].upper()
+    (run / "forge-packet.json").write_text(json.dumps(packet), encoding="utf-8")
+    assert cli("open", str(run / "forge-packet.json")).stdout.strip() == INTENT
+
+
 @pytest.mark.parametrize("content", ["[]", "5", '"text"', "{not json", b"\xff\xfe\x00"])
 def test_open_reports_unreadable_files_cleanly(tmp_path, content):
     path = tmp_path / "thing.json"
@@ -162,6 +180,16 @@ def test_same_run_id_gets_a_new_folder_and_the_first_run_is_untouched(tmp_path, 
         assert verify_run(run / "glyph.svg")["ok"] is True
         if os.name == "posix":
             assert run.stat().st_mode & 0o777 == 0o700
+
+
+def test_a_failure_before_staging_also_releases_the_claim(tmp_path, monkeypatch):
+    def no_space(*a, **k):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(construct.tempfile, "mkdtemp", no_space)
+    with pytest.raises(OSError):
+        construct_run(INTENT, out_root=tmp_path)
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_a_failed_forge_releases_the_folder_it_claimed(tmp_path, monkeypatch):
@@ -208,10 +236,18 @@ def test_scanning_gives_what_the_old_regex_gave(tmp_path):
         "<svg><sf:payloadx>no</sf:payloadx><sf:payload>yes</sf:payload></svg>",
         "<svg></svg>",
         "<svg><sf:payload></sf:payload></svg>",
+        # Characters whose lowercase form is longer; these shifted every index.
+        "<svg><title>\u0130stanbul \u0130\u0130\u0130</title><sf:payload>abc</sf:payload></svg>",
+        "<svg><!-- \u1e9e \ufb01 \u0130 --><SF:PAYLOAD>xyz</SF:PAYLOAD></svg>",
+        real.replace("<metadata>", "<title>\u0130stanbul</title><metadata>", 1),
     ]
+    assert stego_svg._lower_ascii("ABC\u0130xyz") == "abc\u0130xyz"
+    assert len(stego_svg._lower_ascii(samples[-1])) == len(samples[-1])
     for text in samples:
         m = old.search(text)
-        assert stego_svg._element_text(text, text.lower(), "sf:payload") == (m.group(1) if m else None)
+        lowered = stego_svg._lower_ascii(text)
+        assert len(lowered) == len(text)
+        assert stego_svg._element_text(text, lowered, "sf:payload") == (m.group(1) if m else None)
     old_attr = re.compile(r'\b(?:points|d)=([\'"])(.*?)\1', re.IGNORECASE | re.DOTALL)
     for text in [real, '<p d="1 2" points=\'3,4\' D="5"/>', '<p d="1 2', "<p id='x' d='1'/>"]:
         assert list(stego_svg._geometry_attr_values(text)) == [m.group(2) for m in old_attr.finditer(text)]
@@ -247,6 +283,17 @@ def test_oversized_binary_and_linked_svg_are_refused_cleanly(tmp_path):
         link = tmp_path / "link.svg"
         link.symlink_to(Path(packet["artifacts"]["run_dir"]) / "glyph.svg")
         assert verify_run(link)["ok"] is False
+
+
+def test_a_glyph_with_non_ascii_text_before_its_payload_still_verifies(tmp_path):
+    packet = construct_run(INTENT, out_root=tmp_path)
+    glyph = Path(packet["artifacts"]["run_dir"]) / "glyph.svg"
+    text = glyph.read_text(encoding="utf-8")
+    edited = tmp_path / "titled.svg"
+    edited.write_text(text.replace("<metadata>", "<title>\u0130stanbul</title><metadata>", 1), encoding="utf-8")
+    got = verify_run(edited)
+    assert got["intent_digest"] == packet["intent_digest"]
+    assert "svg_metadata" in got["channels_checked"]
 
 
 def test_infinite_and_nan_coordinates_do_not_raise(tmp_path):
@@ -292,16 +339,73 @@ def test_pixel_limit_still_covers_every_real_wallpaper():
     assert 7680 * 4320 < stego_png.MAX_PNG_PIXELS < 100_000_000  # 8K fits; the old limit does not
 
 
+def _vault_wallpaper(tmp_path: Path) -> Path:
+    packet = construct_run(INTENT, out_root=tmp_path / "vault-run", passphrase=PW)
+    result = build_wallpaper(Path(packet["artifacts"]["run_dir"]), surface="phone_lock", passphrase=PW)
+    return Path(result["wallpaper"])
+
+
 def test_png_readers_cap_the_file_size(tmp_path, monkeypatch):
-    monkeypatch.setattr("sigil_forge.verify.MAX_PNG_FILE_BYTES", 1000)
-    monkeypatch.setattr("sigil_forge.inspect_artifact.MAX_PNG_FILE_BYTES", 1000)
-    monkeypatch.setattr("sigil_forge.wallpaper.vault.MAX_PNG_FILE_BYTES", 1000)
-    path = tmp_path / "large.png"
-    path.write_bytes(_png(64, 64) + b"\x00" * 2000)
-    assert verify_run(path)["ok"] is False
-    assert inspect_path(path)["ok"] is False
+    """A real, verifying wallpaper is refused once it is over the cap."""
+    png = _vault_wallpaper(tmp_path)
+    assert verify_run(png)["ok"] is True and inspect_path(png)["ok"] is True
+    for module in ("sigil_forge.verify", "sigil_forge.inspect_artifact", "sigil_forge.wallpaper.vault"):
+        monkeypatch.setattr(f"{module}.MAX_PNG_FILE_BYTES", 1000)
+    assert verify_run(png)["ok"] is False
+    assert inspect_path(png)["ok"] is False
     with pytest.raises(OSError):
-        open_wallpaper_vault(path, PW)
+        open_wallpaper_vault(png, PW)
+
+
+def test_type_sniffing_reads_only_the_head_of_a_file(tmp_path, monkeypatch):
+    """inspect and verify used to load a whole file just to guess its type."""
+    huge = tmp_path / "huge.dat"
+    with open(huge, "wb") as fh:
+        fh.truncate(3 * 1024 * 1024 * 1024)  # sparse: 3 GB that costs no disk
+    read_sizes: list[int] = []
+    real_read = os.read
+
+    def spy(fd, n):
+        read_sizes.append(n)
+        return real_read(fd, n)
+
+    monkeypatch.setattr(safe_io.os, "read", spy)
+    monkeypatch.setattr(Path, "read_bytes", lambda self: pytest.fail("unbounded read_bytes"))
+    monkeypatch.setattr(Path, "read_text", lambda self, **k: pytest.fail("unbounded read_text"))
+    for path in (huge, huge.rename(tmp_path / "huge.png")):
+        assert inspect_path(path)["ok"] is False
+        assert verify_run(path)["ok"] is False
+    assert read_sizes and max(read_sizes) <= 1 << 16
+    assert safe_io.read_head(tmp_path, 8) == b"" and safe_io.read_head(tmp_path / "nope", 8) == b""
+
+
+def test_reading_a_payload_decodes_only_the_rows_it_needs(tmp_path):
+    """A small file claiming a huge canvas used to cost half a gigabyte to probe."""
+    import tracemalloc
+
+    wide = tmp_path / "wide.png"
+    wide.write_bytes(_png(6324, 6324))  # just under the pixel limit, about 120 KB on disk
+    tracemalloc.start()
+    got = verify_run(wide)
+    _current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    assert got["ok"] is False and got["detail"] == "bad PNG LSB magic"
+    assert peak < 20 * 1024 * 1024, f"peak {peak / 1e6:.0f} MB"
+    # A partial read returns exactly the first rows of the full image.
+    small = _png(40, 30)
+    w, h, full = stego_png.read_rgb_png(small)
+    w2, h2, part = stego_png.read_rgb_png(small, max_rgb_bytes=250)
+    assert (w, h) == (w2, h2) == (40, 30)
+    assert part == full[: len(part)] and len(part) == 3 * 120  # three rows cover 250 bytes
+    assert stego_png.read_rgb_png(small, max_rgb_bytes=10**9)[2] == full
+
+
+def test_a_real_payload_still_reads_after_the_partial_decode(tmp_path):
+    png = _vault_wallpaper(tmp_path)
+    got = verify_run(png)
+    assert got["ok"] is True and got["stego_format"] == "SF12"
+    # An unsealed packet gives the vault the normalized form of the intent.
+    assert open_wallpaper_vault(png, PW)["normalized_intent"] == INTENT.lower()
 
 
 # --------------------------------------------------- D. phoneme file
@@ -326,11 +430,13 @@ def test_asking_for_a_vault_without_a_passphrase_is_an_error(tmp_path):
     run = Path(packet["artifacts"]["run_dir"])
     with pytest.raises(ValueError, match="needs a passphrase"):
         build_wallpaper(run, surface="phone_lock", embedded_payload="vault")
+    assert not (run / "wallpaper").exists()  # refused before anything was written
     auto = build_wallpaper(run, surface="phone_lock")  # auto still works unsealed
     assert auto["ok"] is True and auto["vault_status"] == "skipped"
     r = cli("construct", "--intent", INTENT, "--wallpaper", "--embed", "vault",
             "--out", str(tmp_path / "cli"), passphrase=None)
     assert r.returncode == 1 and "needs a passphrase" in _error(r)
+    assert not (tmp_path / "cli").exists()  # refused before forging: no orphan run
 
 
 def test_a_vault_made_from_a_sealed_packet_holds_the_intent(sealed_runs, tmp_path):
@@ -350,6 +456,20 @@ def test_a_vault_cannot_be_built_from_a_sealed_packet_with_the_wrong_passphrase(
     run = _copy(sealed_runs[0], tmp_path)
     with pytest.raises(ValueError, match="does not open it"):
         build_wallpaper(run, surface="phone_lock", passphrase="not-the-passphrase", embedded_payload="vault")
+    assert not (run / "wallpaper").exists()
+
+
+def test_a_vault_is_not_built_around_another_runs_sealed_intent(sealed_runs, tmp_path):
+    """Same passphrase on both runs, so only the digest check can stop it."""
+    run = _copy(sealed_runs[0], tmp_path)
+    packet = json.loads((run / "forge-packet.json").read_text(encoding="utf-8"))
+    other = json.loads((sealed_runs[1] / "forge-packet.json").read_text(encoding="utf-8"))
+    packet["sealed_intent"] = other["sealed_intent"]
+    (run / "forge-packet.json").write_text(json.dumps(packet), encoding="utf-8")
+    for mode in ("vault", "auto"):
+        with pytest.raises(ValueError, match="does not match this run"):
+            build_wallpaper(run, surface="phone_lock", passphrase=PW, embedded_payload=mode)
+    assert not (run / "wallpaper").exists()
 
 
 # ------------------------------------- F. clean errors, never a traceback

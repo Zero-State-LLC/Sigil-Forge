@@ -49,6 +49,31 @@ def read_regular(path: Path | str, limit: int) -> bytes:
         os.close(fd)
 
 
+def read_head(path: Path | str, n: int) -> bytes:
+    """First ``n`` bytes of a regular file, whatever its size; b"" if unsafe.
+
+    For sniffing a file's type. Never reads more than ``n`` bytes, so a huge
+    file costs nothing, and never raises: a link, pipe, directory or missing
+    file just does not look like anything.
+    """
+    path = Path(path)
+    try:
+        if path.is_symlink():
+            return b""
+        flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags)
+    except OSError:
+        return b""
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return b""
+        return os.read(fd, n)
+    except OSError:
+        return b""
+    finally:
+        os.close(fd)
+
+
 def read_text(path: Path | str, limit: int) -> str:
     """``read_regular`` decoded as UTF-8; raises ValueError if it is not text."""
     return read_regular(path, limit).decode("utf-8")

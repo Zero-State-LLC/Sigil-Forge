@@ -90,6 +90,18 @@ def _decode_float_bit(val: float) -> int:
     return q % 2
 
 
+_ASCII_LOWER = {c: c + 32 for c in range(ord("A"), ord("Z") + 1)}
+
+
+def _lower_ascii(text: str) -> str:
+    """Lowercase A-Z only, so every index still points at the same character.
+
+    ``str.lower()`` can change a string's length (a dotted capital I becomes
+    two characters), which would shift every position found afterwards.
+    """
+    return text.translate(_ASCII_LOWER)
+
+
 def _element_text(svg: str, lowered: str, tag: str) -> str | None:
     """Text of the first ``<tag ...>...</tag>``, found by plain scanning.
 
@@ -417,7 +429,7 @@ def extract(svg: str) -> dict[str, Any]:
     }
 
     # Prefer sf:payload text (with or without namespace prefix)
-    lowered = svg.lower()
+    lowered = _lower_ascii(svg)
     payload_text = _element_text(svg, lowered, "sf:payload")
     if payload_text is None:
         # Clark/expanded or unprefixed payload inside metadata
