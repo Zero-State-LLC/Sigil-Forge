@@ -202,14 +202,18 @@ def read_ledger(ledger_path: Path | None = None, limit: int = 50) -> list[dict[s
         return []
     lines = path.read_text(encoding="utf-8").splitlines()
     out: list[dict[str, Any]] = []
-    for line in lines[-limit:]:
+    # limit <= 0 used to mean "everything" (or "all but the first"): slicing
+    # with a non-positive number. It now means none.
+    for line in lines[-limit:] if limit > 0 else []:
         line = line.strip()
         if not line:
             continue
         try:
-            out.append(json.loads(line))
+            entry = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if isinstance(entry, dict):
+            out.append(entry)
     return out
 
 

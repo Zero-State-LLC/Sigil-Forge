@@ -30,6 +30,7 @@ from sigil_forge.paths import (
     make_run_id,
     run_dir as make_run_dir,
     skill_root,
+    write_private_text,
 )
 from sigil_forge.safety import check_intent
 from sigil_forge.stego_png import embed_lsb, pack_payload
@@ -423,11 +424,33 @@ def run(
         root.mkdir(parents=True, exist_ok=True)
     else:
         root = ensure_private_dir(default_out_dir())
-    rid = make_run_id(digest)
-    final_dir = make_run_dir(root, rid)
-    staging = Path(
-        tempfile.mkdtemp(prefix=f".sf-staging-{rid}-", dir=str(root))
-    )
+    # Run ids carry a one-second timestamp, so the same intent forged twice in
+    # one second would get the same folder. Never reuse one: an earlier run
+    # (with its wallpapers and proofs) must not be replaced.
+    # The folder is claimed here with mkdir, which is atomic, so two forges
+    # running at once get different ids and neither waits or fails.
+    base_rid = make_run_id(digest)
+    rid, attempt = base_rid, 1
+    while True:
+        final_dir = make_run_dir(root, rid)
+        try:
+            os.mkdir(final_dir, 0o700)
+            break
+        except FileExistsError:
+            attempt += 1
+            if attempt > 1000:
+                raise RuntimeError("could not find a free run folder name") from None
+            rid = f"{base_rid}-{attempt}"
+    try:
+        staging = Path(
+            tempfile.mkdtemp(prefix=f".sf-staging-{rid}-", dir=str(root))
+        )
+    except BaseException:
+        try:
+            os.rmdir(final_dir)  # do not leave the claimed folder behind
+        except OSError:
+            pass
+        raise
 
     try:
         svg_path = staging / "glyph.svg"
@@ -527,10 +550,9 @@ def run(
             ph = build_phonetic_artifact(
                 normalized, intent_digest=digest, mode="phonetic_mantric"
             )
+            # The mantric form spells the intent out; owner-only, like the packet.
             ph_path = staging / "phoneme-sequence.json"
-            ph_path.write_text(
-                _json.dumps(ph, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-            )
+            write_private_text(ph_path, _json.dumps(ph, indent=2, sort_keys=True) + "\n")
             phonetic_final = str(final_dir / "phoneme-sequence.json")
             phonetic_channel = _ch(
                 "phonetic_sigil",
@@ -928,12 +950,21 @@ def run(
             except OSError:
                 pass
 
-        # Promote staging → final (replace any prior run with same id).
-        if final_dir.exists():
-            shutil.rmtree(final_dir)
-        staging.rename(final_dir)
+        # Promote staging → final, onto the empty folder claimed at the start.
+        try:
+            os.rename(staging, final_dir)
+        except OSError:
+            # Windows cannot rename onto an existing folder, even an empty one.
+            # Move the contents in instead, so the claim is never given up.
+            for entry in sorted(staging.iterdir()):
+                os.rename(entry, final_dir / entry.name)
+            os.rmdir(staging)
         staging = None  # ownership transferred
         return packet
     finally:
         if staging is not None and staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
+            try:
+                os.rmdir(final_dir)  # release the claim; only ever empty here
+            except OSError:
+                pass

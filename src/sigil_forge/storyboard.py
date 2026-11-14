@@ -20,10 +20,8 @@ import base64
 import hashlib
 import json
 import math
-import os
 import re
 import shutil
-import stat
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +36,7 @@ from sigil_forge.paths import (
     skill_root,
     write_private_text,
 )
+from sigil_forge.safe_io import read_regular
 from sigil_forge.safety import check_intent
 
 SCHEMA = "sigil-forge-storyboard/1"
@@ -272,37 +271,6 @@ def build_storyboard(
 # ---------------------------------------------------------------- verification
 
 
-def _read_regular(path: Path, limit: int) -> bytes:
-    """Read at most ``limit`` bytes of a regular file, without following a link.
-
-    Refuses symlinks, FIFOs, devices and anything larger than ``limit``. The
-    checks are made on the opened file, so nothing can be swapped in between
-    the check and the read, and a FIFO cannot block the caller.
-    """
-    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
-    if path.is_symlink():
-        raise OSError("symlink")
-    fd = os.open(path, flags)
-    try:
-        info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode):
-            raise OSError("not a regular file")
-        if info.st_size > limit:
-            raise OSError("larger than the limit")
-        chunks, total = [], 0
-        while total <= limit:
-            chunk = os.read(fd, min(1 << 16, limit + 1 - total))
-            if not chunk:
-                break
-            chunks.append(chunk)
-            total += len(chunk)
-        if total > limit:
-            raise OSError("larger than the limit")
-        return b"".join(chunks)
-    finally:
-        os.close(fd)
-
-
 def _why(exc: Exception) -> str:
     """Our own refusal text, or just the error's class: never a path or file content."""
     if isinstance(exc, OSError) and exc.errno is None and exc.args:
@@ -385,7 +353,7 @@ def verify_sheet(sheet_path: Path | str, *, expected_root: str | None = None) ->
     path = Path(sheet_path)
     out = _result(path, "sheet")
     try:
-        text = _read_regular(path, MAX_SHEET_BYTES).decode("utf-8")
+        text = read_regular(path, MAX_SHEET_BYTES).decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         out["detail"] = f"cannot read sheet: {_why(exc)}"
         return out
@@ -451,7 +419,7 @@ def verify_index(index_path: Path | str, *, expected_root: str | None = None) ->
     path = Path(index_path)
     out = _result(path, "index")
     try:
-        index = json.loads(_read_regular(path, MAX_INDEX_BYTES).decode("utf-8"))
+        index = json.loads(read_regular(path, MAX_INDEX_BYTES).decode("utf-8"))
         if not isinstance(index, dict):
             raise ValueError("not a storyboard index")
         listed = index["frames"]
@@ -487,7 +455,7 @@ def verify_index(index_path: Path | str, *, expected_root: str | None = None) ->
             try:
                 if (root / f["run_dir"]).is_symlink():
                     raise OSError("symlink")
-                glyph = _read_regular(glyph_path, MAX_FRAME_SVG_BYTES)
+                glyph = read_regular(glyph_path, MAX_FRAME_SVG_BYTES)
             except OSError:
                 problems.append(f"frame {k}: glyph.svg is missing or unreadable")
                 frames.append({"index": k, "ok": False, "intent_digest": None,
@@ -514,7 +482,7 @@ def verify_index(index_path: Path | str, *, expected_root: str | None = None) ->
         else:
             sheet_path = path.parent / name
             try:
-                actual = hashlib.sha256(_read_regular(sheet_path, MAX_SHEET_BYTES)).hexdigest()
+                actual = hashlib.sha256(read_regular(sheet_path, MAX_SHEET_BYTES)).hexdigest()
             except OSError:
                 problems.append("sheet is missing or unreadable")
             else:

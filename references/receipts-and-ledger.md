@@ -31,9 +31,10 @@ and do not point `SIGIL_FORGE_RECEIPTS` at a shared location. The engine
 creates new receipt files owner-only (`0600`) and keeps the default log in an
 owner-only directory; a file that already exists keeps its mode.
 
-The same holds for two other files of a run: `forge-packet.json` (plaintext
-intent unless sealed) and `method-manifest.json` (the same intent-derived
-`methods` block as a receipt, also written `0600`). In a run made before the
+The same holds for these other files of a run: `forge-packet.json` and
+`forge-packet.md` (plaintext intent unless sealed; method detail either way) and `method-manifest.json` (the same intent-derived
+`methods` block as a receipt, also written `0600`) and, with `--phonetic`,
+`phoneme-sequence.json` (it spells the intent out; also `0600`). In a run made before the
 manifest was split, `forge-manifest.json` holds that block and is private too. Every run folder is created owner-only
 (`0700`), including under an operator-chosen `--out`, so other users cannot
 read the files inside it even though most of them have ordinary modes.

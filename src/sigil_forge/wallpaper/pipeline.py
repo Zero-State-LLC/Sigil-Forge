@@ -18,6 +18,39 @@ from sigil_forge.wallpaper.spec import SCHEMA_VERSION, build_wallpaper_spec, loa
 from sigil_forge.wallpaper.verify_wallpaper import verify_wallpaper
 
 
+def _intent_for_vault(packet: dict[str, Any], intent: str | None, passphrase: str) -> str | None:
+    """The intent a vault will seal, checked against the run's own digest.
+
+    A sealed packet holds no plaintext, so it is recovered with the same
+    passphrase; otherwise the vault would be sealed around nothing. Whatever
+    the source, the text must be this run's intent: a ``sealed_intent`` copied
+    in from another run must not end up under this run's digest.
+    """
+    from sigil_forge.crypto_payload import intent_digest, open_intent
+    from sigil_forge.normalize import normalize_intent
+
+    text = intent or packet.get("intent") or packet.get("normalized_intent")
+    if not text:
+        sealed_intent = packet.get("sealed_intent")
+        if not isinstance(sealed_intent, dict):
+            raise ValueError("cannot build the wallpaper vault: this run holds no intent to seal")
+        try:
+            text = open_intent(sealed_intent, passphrase)
+        except Exception as exc:  # noqa: BLE001 - wrong passphrase or damaged
+            raise ValueError(
+                "cannot build the wallpaper vault: this run's intent is sealed "
+                "and this passphrase does not open it"
+            ) from exc
+        intent = text
+    claimed = packet.get("intent_digest")
+    if isinstance(claimed, str) and claimed:
+        if intent_digest(normalize_intent(str(text))) != claimed.lower():
+            raise ValueError(
+                "cannot build the wallpaper vault: the intent does not match this run's intent_digest"
+            )
+    return intent
+
+
 def build_wallpaper(
     run_dir: Path | str,
     *,
@@ -51,6 +84,15 @@ def build_wallpaper(
     """
     run_dir = Path(run_dir)
     forge = load_forge_run(run_dir)
+    # Settle the vault question first. Failing later would leave a wallpaper
+    # on disk with no payload in it.
+    if str(embedded_payload or "auto").strip().lower() == "vault" and not passphrase:
+        raise ValueError(
+            "--embed vault needs a passphrase (SIGIL_FORGE_PASSPHRASE or --passphrase); "
+            "use --embed auto for an unsealed wallpaper"
+        )
+    if passphrase and str(embedded_payload or "auto").strip().lower() in ("vault", "auto"):
+        intent = _intent_for_vault(forge["packet"], intent, passphrase)
     spec = build_wallpaper_spec(
         run_dir,
         surface=surface,
@@ -159,9 +201,12 @@ def build_wallpaper(
     vault_status = "skipped"
     if embed_mode == "vault":
         if not passphrase:
-            vault_status = "failed_no_passphrase"
-            # Fall back to public SF11 so wallpaper still binds digests
-            embed_mode = "sf11" if packet.get("sigil_root") else "intent_digest"
+            # The operator asked for a sealed vault. Quietly writing an
+            # unsealed wallpaper and reporting success would mislead them.
+            raise ValueError(
+                "--embed vault needs a passphrase (SIGIL_FORGE_PASSPHRASE or --passphrase); "
+                "use --embed auto for an unsealed wallpaper"
+            )
         else:
             from sigil_forge.wallpaper.vault import build_vault_document, seal_vault
 

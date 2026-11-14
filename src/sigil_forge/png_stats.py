@@ -69,9 +69,13 @@ def analyze_png(path: Path | str, *, max_bytes: int = MAX_FILE_BYTES) -> dict[st
     p = Path(path)
     if not p.is_file():
         raise ValueError(f"file not found: {p}")
-    if p.stat().st_size > max_bytes:
-        raise ValueError(f"file larger than {max_bytes} bytes")
-    width, height, rgb = read_rgb_png(p.read_bytes())
+    from sigil_forge.safe_io import read_regular
+
+    try:
+        data = read_regular(p, max_bytes)
+    except OSError as exc:
+        raise ValueError(f"cannot read PNG: {exc.args[0] if exc.args else type(exc).__name__}") from None
+    width, height, rgb = read_rgb_png(data)
 
     samples = len(rgb)
     plane = rgb.translate(_LSB_TABLE)

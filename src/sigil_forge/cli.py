@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import zlib
 from pathlib import Path
+from typing import Any
+
+from sigil_forge.safe_io import MAX_JSON_BYTES, read_text
 
 
 def cmd_help(_: argparse.Namespace) -> int:
@@ -284,6 +288,26 @@ def cmd_construct(args: argparse.Namespace) -> int:
 
     # Explicit --passphrase wins over SIGIL_FORGE_PASSPHRASE when both set.
     passphrase = resolve_passphrase(args.passphrase)
+    if (
+        getattr(args, "wallpaper", False)
+        and getattr(args, "embed", "auto") == "vault"
+        and not passphrase
+    ):
+        # Refuse before forging: failing afterwards would leave a finished run
+        # and a wallpaper with nothing sealed in it.
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": (
+                        "--embed vault needs a passphrase (SIGIL_FORGE_PASSPHRASE or "
+                        "--passphrase); use --embed auto for an unsealed wallpaper"
+                    ),
+                }
+            ),
+            file=sys.stderr,
+        )
+        return 1
     try:
         packet = construct_run(
             args.intent,
@@ -531,45 +555,70 @@ def cmd_open(args: argparse.Namespace) -> int:
         )
         return 1
 
-    # Wallpaper product: SF12 sealed vault inside PNG LSB
-    if getattr(args, "wallpaper", False) or path.suffix.lower() == ".png":
-        if getattr(args, "wallpaper", False) or path.suffix.lower() == ".png":
-            try:
-                from sigil_forge.wallpaper.vault import open_wallpaper_vault
+    def refuse(message: str) -> int:
+        print(json.dumps({"ok": False, "error": message}), file=sys.stderr)
+        return 1
 
-                # Only treat as vault when --wallpaper or SF12 probe succeeds
-                if getattr(args, "wallpaper", False):
-                    result = open_wallpaper_vault(path, passphrase)
-                    if args.json:
-                        print(json.dumps(result, indent=2, sort_keys=True))
-                    else:
-                        print(result.get("intent") or result.get("normalized_intent") or "")
-                    return 0
-            except Exception as exc:  # noqa: BLE001
-                if getattr(args, "wallpaper", False):
-                    print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
-                    return 1
-                # fall through for non-wallpaper png opens that are not vaults
+    def digest_mismatch(intent: Any, normalized: Any, claimed: Any) -> str:
+        """Why the decrypted text is not the intent this file says it holds."""
+        from sigil_forge.crypto_payload import intent_digest
+        from sigil_forge.normalize import normalize_intent
+
+        if not isinstance(claimed, str) or len(claimed) != 64:
+            # Every packet, capsule and vault has carried this field since the
+            # first release. Without it there is nothing to check against, and
+            # deleting it must not be a way around the check.
+            return "this file has no intent_digest to check the decrypted intent against"
+        candidates = []
+        if isinstance(normalized, str) and normalized:
+            candidates.append(normalized)
+        if isinstance(intent, str) and intent.strip():
+            candidates.append(normalize_intent(intent))
+        if not candidates:
+            return "the sealed data holds no intent"
+        # Both the intent and its normalized form must be this file's intent:
+        # the text printed is the intent, so matching on one alone is not enough.
+        if any(intent_digest(c) != claimed.lower() for c in candidates):
+            return (
+                "the decrypted intent does not match this file's intent_digest; "
+                "the sealed part belongs to a different run"
+            )
+        return ""
+
+    def open_vault() -> int:
+        from sigil_forge.wallpaper.vault import open_wallpaper_vault
+
+        try:
+            result = open_wallpaper_vault(path, passphrase)
+        except Exception as exc:  # noqa: BLE001 - wrong passphrase, not a vault, damaged
+            return refuse(str(exc))
+        problem = digest_mismatch(
+            result.get("intent"), result.get("normalized_intent"), result.get("intent_digest")
+        )
+        if not (result.get("intent") or result.get("normalized_intent")):
+            problem = (
+                "this vault holds no intent: it was made from a sealed packet. "
+                "Open the packet instead."
+            )
+        if problem:
+            return refuse(problem)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print(result.get("intent") or result.get("normalized_intent"))
+        return 0
+
+    is_png = path.suffix.lower() == ".png"
+    # Wallpaper product: SF12 sealed vault inside PNG LSB
+    if getattr(args, "wallpaper", False) or is_png:
+        return open_vault()
 
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        # last chance: png vault without --wallpaper flag
-        if path.suffix.lower() == ".png":
-            try:
-                from sigil_forge.wallpaper.vault import open_wallpaper_vault
-
-                result = open_wallpaper_vault(path, passphrase)
-                if args.json:
-                    print(json.dumps(result, indent=2, sort_keys=True))
-                else:
-                    print(result.get("intent") or result.get("normalized_intent") or "")
-                return 0
-            except Exception as exc2:  # noqa: BLE001
-                print(json.dumps({"ok": False, "error": str(exc2)}), file=sys.stderr)
-                return 1
-        print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
-        return 1
+        data = json.loads(read_text(path, MAX_JSON_BYTES))
+    except (OSError, ValueError) as exc:
+        return refuse(f"cannot read {path.name} as JSON: {type(exc).__name__}")
+    if not isinstance(data, dict):
+        return refuse(f"{path.name} is not a JSON object")
 
     # Capsule mode: open intent-capsule.json sealed witness
     if getattr(args, "capsule", False):
@@ -578,8 +627,13 @@ def cmd_open(args: argparse.Namespace) -> int:
         try:
             witness = open_capsule(data, passphrase)
         except Exception as exc:  # noqa: BLE001
-            print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
-            return 1
+            return refuse(str(exc))
+        claimed = (data.get("compatibility") or {}).get("intent_digest")
+        problem = digest_mismatch(
+            witness.get("intent"), witness.get("normalized_intent"), claimed
+        )
+        if problem:
+            return refuse(problem)
         intent_text = witness.get("intent") or witness.get("normalized_intent") or ""
         if args.json:
             # Authorized disclosure only — never log elsewhere
@@ -590,9 +644,7 @@ def cmd_open(args: argparse.Namespace) -> int:
                         "source": "intent_capsule",
                         "intent": witness.get("intent"),
                         "normalized_intent": witness.get("normalized_intent"),
-                        "intent_digest": (data.get("compatibility") or {}).get(
-                            "intent_digest"
-                        ),
+                        "intent_digest": claimed,
                         "commitment": data.get("commitment"),
                         "public_bindings": data.get("public_bindings"),
                     },
@@ -605,24 +657,17 @@ def cmd_open(args: argparse.Namespace) -> int:
 
     sealed = data.get("sealed_intent")
     if not isinstance(sealed, dict):
-        print(
-            json.dumps(
-                {
-                    "ok": False,
-                    "error": (
-                        "packet has no sealed_intent "
-                        "(construct without seal? use --capsule for intent-capsule.json)"
-                    ),
-                }
-            ),
-            file=sys.stderr,
+        return refuse(
+            "packet has no sealed_intent "
+            "(construct without seal? use --capsule for intent-capsule.json)"
         )
-        return 1
     try:
         text = open_intent(sealed, passphrase)
     except Exception as exc:  # noqa: BLE001
-        print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
-        return 1
+        return refuse(str(exc))
+    problem = digest_mismatch(text, None, data.get("intent_digest"))
+    if problem:
+        return refuse(problem)
     if args.json:
         print(
             json.dumps(
@@ -1417,6 +1462,26 @@ def _add_wallpaper_options(parser: argparse.ArgumentParser, *, require_run: bool
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the CLI. Any unexpected error becomes one JSON line, never a traceback.
+
+    Commands report the failures they expect themselves. This is the net under
+    them: a file that is a directory, bytes that are not text, a value of the
+    wrong type. Set ``SIGIL_FORGE_DEBUG=1`` to see the traceback instead.
+    """
+    try:
+        return _main(argv)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as exc:  # noqa: BLE001 - last resort, see docstring
+        if os.environ.get("SIGIL_FORGE_DEBUG"):
+            raise
+        message = str(exc).strip().splitlines()[0][:300] if str(exc).strip() else ""
+        error = f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+        print(json.dumps({"ok": False, "error": error}), file=sys.stderr)
+        return 1
+
+
+def _main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="sigil-forge")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("help", help="Show command overview")

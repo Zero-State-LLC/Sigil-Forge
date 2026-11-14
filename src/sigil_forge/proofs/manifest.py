@@ -45,7 +45,9 @@ def load_proof_manifest(run_dir: Path | str) -> dict[str, Any] | None:
         p = p2 if p2.is_file() else p
     if not p.is_file():
         return None
-    return json.loads(p.read_text(encoding="utf-8"))
+    from sigil_forge.safe_io import MAX_JSON_BYTES, read_text
+
+    return json.loads(read_text(p, MAX_JSON_BYTES))
 
 
 def file_digest(path: Path | str) -> str:

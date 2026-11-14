@@ -87,7 +87,9 @@ def write_rgb_png(width: int, height: int, rgb: bytes) -> bytes:
 
 # Largest image read_rgb_png will decode: 100 megapixels, three times an 8K
 # frame. The header is untrusted and this pure-Python reader holds every pixel.
-MAX_PNG_PIXELS = 100_000_000
+# 8K UHD is 33 megapixels and the largest wallpaper profile is 5. At the old
+# limit of 100 a 300 KB crafted file made the reader allocate over a gigabyte.
+MAX_PNG_PIXELS = 40_000_000
 
 
 def inflate_bounded(data: bytes, limit: int) -> bytes:
@@ -101,11 +103,16 @@ def inflate_bounded(data: bytes, limit: int) -> bytes:
     return out
 
 
-def read_rgb_png(png_bytes: bytes) -> tuple[int, int, bytes]:
+def read_rgb_png(png_bytes: bytes, *, max_rgb_bytes: int | None = None) -> tuple[int, int, bytes]:
     """Read 8-bit non-interlaced RGB PNG → (width, height, rgb_bytes).
 
     Supports filter type 0 only (as produced by ``write_rgb_png``).
     Concatenates multiple IDAT chunks.
+
+    With ``max_rgb_bytes`` only the first rows needed to supply that many
+    channel bytes are inflated and returned. Reading a short hidden payload
+    then costs a few rows, not the whole image, so a crafted file that claims
+    a huge canvas cannot make a header probe expensive.
     """
     if not png_bytes.startswith(PNG_SIG):
         raise ValueError("not a PNG (bad signature)")
@@ -161,16 +168,22 @@ def read_rgb_png(png_bytes: bytes) -> tuple[int, int, bytes]:
         raise ValueError("missing IDAT")
 
     stride = width * 3
-    expected_raw = height * (1 + stride)
-    # IHDR fixes the inflated size, so never inflate past it (zlib bomb guard).
-    raw = inflate_bounded(bytes(idat), expected_raw)
+    rows = height
+    if max_rgb_bytes is not None:
+        rows = min(height, max(1, -(-max_rgb_bytes // stride)))
+    expected_raw = rows * (1 + stride)
+    if rows == height:
+        # IHDR fixes the inflated size, so never inflate past it (zlib bomb guard).
+        raw = inflate_bounded(bytes(idat), expected_raw)
+    else:
+        raw = zlib.decompressobj().decompress(bytes(idat), expected_raw)
     if len(raw) != expected_raw:
         raise ValueError(f"unexpected inflated size {len(raw)} != {expected_raw}")
 
-    out = bytearray(width * height * 3)
+    out = bytearray(rows * stride)
     i = 0
     o = 0
-    for _y in range(height):
+    for _y in range(rows):
         filter_type = raw[i]
         i += 1
         if filter_type != 0:
@@ -207,11 +220,12 @@ def extract_lsb(png_bytes: bytes, n: int) -> bytes:
         raise ValueError("n must be >= 0")
     if n == 0:
         return b""
-    _w, _h, rgb = read_rgb_png(png_bytes)
     bits_needed = n * 8
-    if bits_needed > len(rgb):
+    # Only the rows that hold the payload are decoded.
+    w, h, rgb = read_rgb_png(png_bytes, max_rgb_bytes=bits_needed)
+    if bits_needed > w * h * 3:
         raise ValueError(
-            f"requested {bits_needed} bits exceeds image capacity {len(rgb)}"
+            f"requested {bits_needed} bits exceeds image capacity {w * h * 3}"
         )
     out = bytearray(n)
     bit_i = 0

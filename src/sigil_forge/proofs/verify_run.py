@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from sigil_forge.safe_io import MAX_JSON_BYTES, read_text
 from sigil_forge.proofs.manifest import load_proof_manifest
 from sigil_forge.proofs.registry import get_provider
 
@@ -50,7 +51,7 @@ def verify_proof_run(
     packet: dict[str, Any] = {}
     if packet_path.is_file():
         try:
-            packet = json.loads(packet_path.read_text(encoding="utf-8"))
+            packet = json.loads(read_text(packet_path, MAX_JSON_BYTES))
         except (OSError, ValueError) as exc:
             out["detail"] = f"cannot read forge-packet.json: {type(exc).__name__}"
             return out
@@ -100,7 +101,12 @@ def verify_proof_run(
         extra["passphrase"] = passphrase
         cap_path = run / "intent-capsule.json"
         if cap_path.is_file():
-            extra["capsule"] = json.loads(cap_path.read_text(encoding="utf-8"))
+            try:
+                capsule_doc = json.loads(read_text(cap_path, MAX_JSON_BYTES))
+            except (OSError, ValueError):
+                capsule_doc = None
+            if isinstance(capsule_doc, dict):
+                extra["capsule"] = capsule_doc
 
     # Prefer Noir when generated; fall back to local capsule attestation
     attempts: list[tuple[str, Any, Any]] = []

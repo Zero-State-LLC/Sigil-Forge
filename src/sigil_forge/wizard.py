@@ -388,6 +388,11 @@ def clean_answers(raw: dict[str, Any] | None) -> tuple[dict[str, Any], list[str]
         if key in ("path", "session_id"):
             continue
         if isinstance(key, str) and key in known:
+            # An intent that is not text (a number, a list) is dropped here so
+            # it is reported as ignored, not crashed on later.
+            if key == "intent" and value is not None and not isinstance(value, str):
+                ignored.append("intent (not text)")
+                continue
             clean[key] = value
         else:
             ignored.append(str(key)[:40])

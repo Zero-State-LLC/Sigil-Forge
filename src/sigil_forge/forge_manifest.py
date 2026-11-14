@@ -21,13 +21,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
-import stat
 from pathlib import Path
 from typing import Any
 
 from sigil_forge.artifact_root import merkle_root
+from sigil_forge.safe_io import read_regular
 
 PUBLIC_SCHEMA_VERSION = "2.0.0"
 METHOD_SCHEMA_VERSION = "1.0.0"
@@ -272,24 +271,7 @@ def write_private_manifest(path: Any, manifest: dict[str, Any]) -> str:
 
 def _read_json(path: Path) -> Any:
     """Bounded read of a regular file as JSON; no symlinks, FIFOs or devices."""
-    if path.is_symlink():
-        raise OSError("symlink")
-    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
-    fd = os.open(path, flags)
-    try:
-        info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_MANIFEST_BYTES:
-            raise OSError("not a regular file within the size limit")
-        data = b""
-        while len(data) <= MAX_MANIFEST_BYTES:
-            chunk = os.read(fd, 1 << 16)
-            if not chunk:
-                break
-            data += chunk
-    finally:
-        os.close(fd)
-    if len(data) > MAX_MANIFEST_BYTES:
-        raise OSError("larger than the limit")
+    data = read_regular(path, MAX_MANIFEST_BYTES)
 
     def no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         # A repeated key keeps only its last value once parsed, so the bytes
