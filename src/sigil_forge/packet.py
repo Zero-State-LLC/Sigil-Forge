@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from sigil_forge.paths import write_private_text
 from sigil_forge.policy_lint import assert_no_efficacy
 
 SCHEMA_VERSION = "1.2"
@@ -201,9 +202,7 @@ def write_packet_files(packet: dict[str, Any], run_dir: Path) -> dict[str, str]:
     run_dir.mkdir(parents=True, exist_ok=True)
     json_path = run_dir / "forge-packet.json"
     md_path = run_dir / "forge-packet.md"
-    json_path.write_text(
-        json.dumps(packet, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    md_path.write_text(to_markdown(packet), encoding="utf-8")
+    # Both hold the intent (unless sealed) and method detail derived from it.
+    write_private_text(json_path, json.dumps(packet, indent=2, sort_keys=True) + "\n")
+    write_private_text(md_path, to_markdown(packet))
     return {"packet_json": str(json_path), "packet_md": str(md_path)}

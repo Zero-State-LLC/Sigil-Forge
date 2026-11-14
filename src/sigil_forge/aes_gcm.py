@@ -23,9 +23,16 @@ from sigil_forge import aes_gcm_pure as _pure
 try:  # resolved once at import
     from cryptography.exceptions import InvalidTag as _InvalidTag
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM as _AESGCM
-except Exception:  # noqa: BLE001 - ImportError or any broken-install failure
+except ImportError:
     _AESGCM = None
     _InvalidTag = None
+    _LOAD_PROBLEM = None  # simply not installed
+except Exception as _exc:  # noqa: BLE001 - installed but broken
+    _AESGCM = None
+    _InvalidTag = None
+    _LOAD_PROBLEM = type(_exc).__name__
+else:
+    _LOAD_PROBLEM = None
 
 ENV_VAR = "SIGIL_FORGE_AES_BACKEND"
 _TAG_LEN = 16
@@ -53,6 +60,27 @@ def _use_library() -> bool:
             )
         return False
     return True
+
+
+def backend_note() -> str:
+    """Why the built-in implementation is in use, when it is; else empty.
+
+    The built-in AES-GCM is correct but not constant-time. A broken install
+    of ``cryptography`` used to fall back to it without a word.
+    """
+    if _use_library():
+        return ""
+    if _LOAD_PROBLEM:
+        return (
+            f"cryptography is installed but failed to load ({_LOAD_PROBLEM}); "
+            "using the built-in AES-GCM, which is not constant-time"
+        )
+    if _AESGCM is None:
+        return (
+            "using the built-in AES-GCM, which is not constant-time; "
+            "install the 'crypto' extra for a vetted implementation"
+        )
+    return "the built-in AES-GCM was selected with SIGIL_FORGE_AES_BACKEND"
 
 
 def backend() -> str:

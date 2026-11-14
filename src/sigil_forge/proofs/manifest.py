@@ -25,7 +25,10 @@ def write_proof_manifest(
         "proof_kind": result.proof_kind,
         "circuit_version": result.circuit_version,
         "public_inputs": result.public_inputs,
-        "proof_file": result.proof_path,
+        # The proof sits beside this manifest. Recording its name, not the
+        # absolute path it had while the run was being staged, keeps the
+        # manifest true after the folder is moved or copied.
+        "proof_file": Path(result.proof_path).name if result.proof_path else None,
         "verification_key_digest": result.verification_key_digest,
         "status": result.status,
         "detail": result.detail,
