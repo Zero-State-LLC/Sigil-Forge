@@ -199,6 +199,18 @@ def embed_lsb(png_bytes: bytes, payload: bytes) -> bytes:
     if not payload:
         raise ValueError("empty payload")
     w, h, rgb = read_rgb_png(png_bytes)
+    return embed_lsb_rgb(w, h, rgb, payload)
+
+
+def embed_lsb_rgb(w: int, h: int, rgb: bytes, payload: bytes) -> bytes:
+    """``embed_lsb`` for pixels already in hand; returns the PNG.
+
+    Callers that have just decoded an image use this instead of encoding it
+    and handing it to ``embed_lsb`` to decode again. The result is the same
+    bytes either way.
+    """
+    if not payload:
+        raise ValueError("empty payload")
     bits_needed = len(payload) * 8
     if bits_needed > len(rgb):
         raise ValueError(

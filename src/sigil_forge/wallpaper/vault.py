@@ -20,11 +20,10 @@ from sigil_forge.crypto_payload import open_intent, seal_intent
 from sigil_forge.safe_io import MAX_PNG_FILE_BYTES, read_regular
 from sigil_forge.stego_png import (
     DIGEST_LEN,
-    embed_lsb,
+    embed_lsb_rgb,
     extract_lsb,
     inflate_bounded,
     read_rgb_png,
-    write_rgb_png,
 )
 
 SF12_MAGIC = b"SF12"
@@ -298,8 +297,7 @@ def embed_vault_png(
         sealed_blob=sealed_blob,
     )
     w, h, rgb = read_rgb_png(read_regular(path, MAX_PNG_FILE_BYTES))
-    clean = write_rgb_png(w, h, rgb)
-    out = embed_lsb(clean, payload)
+    out = embed_lsb_rgb(w, h, rgb, payload)
     path.write_bytes(out)
     from sigil_forge.wallpaper.seed import file_sha256
 
