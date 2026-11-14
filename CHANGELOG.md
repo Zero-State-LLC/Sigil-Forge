@@ -5,6 +5,8 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+## 0.18.0 - 2026-11-13
+
 ### Added
 
 - `verify-root PATH` recomputes a run's `sigil_root` from its leaves and checks the manifests

@@ -1,6 +1,6 @@
 # Expansion spine
 
-**Current release: v0.17.0** (this file tracks shipped vs remaining).
+**Current release: v0.18.0** (this file tracks shipped vs remaining).
 
 Sigil-Forge is a standalone Hermes skill with a lean install tree, additive
 channels, and an explicit method ontology so “sigil” never collapses intent
@@ -32,6 +32,7 @@ compression, name paths, planetary characters, and entity seals.
 | v0.15.0 | Package layout, installer and hardening work; see CHANGELOG.md |
 | v0.16.0 | Noir proof on the current toolchain (nargo + bb), stricter `verify-proof`, private receipts, Grok Bot skill and Bot brief |
 | v0.17.0 | Storyboard sheet SVG carrying the whole board, `board_root`, `storyboard-verify` with `--expect-root` |
+| v0.18.0 | Public forge manifest (ids and digests), private method manifest, `verify-root` |
 
 ### Craft / methods
 - Encodings: `hebrew_gematria` (default; native Hebrew + latin translit), `latin_extended`, `latin_mod9_v1` (compat)
