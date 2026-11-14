@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from sigil_forge.stego_png import DIGEST_LEN, MAGIC, extract_lsb
 from sigil_forge.stego_svg import expected_epsilon_bits
 from sigil_forge.stego_svg import extract as extract_svg
 
@@ -209,32 +208,18 @@ def _verify_svg(path: Path, expected_digest: str | None = None) -> dict[str, Any
 
 
 def _verify_png(path: Path, expected_digest: str | None = None) -> dict[str, Any]:
-    data = path.read_bytes()
     channels: list[str] = []
     try:
-        from sigil_forge.stego_envelope import SF11_MAGIC, unpack_envelope
+        from sigil_forge.wallpaper.vault import probe_png_public
 
-        # Peek magic: SF1 needs 36 bytes; SF11 needs 74
-        peek = extract_lsb(data, 4)
-        if peek == SF11_MAGIC:
-            raw = extract_lsb(data, 4 + 1 + 1 + 32 + 32 + 4)
-        elif peek == MAGIC:
-            raw = extract_lsb(data, 4 + DIGEST_LEN)
-        else:
-            return _apply_expected(
-                _fail(
-                    path=path,
-                    kind="png",
-                    detail="bad PNG LSB magic",
-                    channels=channels,
-                ),
-                expected_digest,
-            )
-        env = unpack_envelope(raw)
+        env = probe_png_public(path.read_bytes())
         digest_hex = env.get("intent_digest")
         channels.append("png_lsb")
         if env.get("format") == "SF11":
             channels.append("sf11_root")
+        elif env.get("format") == "SF12":
+            # The vault's public header and CRC were read; nothing was decrypted.
+            channels.append("sf12_vault")
         if not _digest_format_ok(digest_hex):
             return _apply_expected(
                 _fail(
@@ -259,7 +244,15 @@ def _verify_png(path: Path, expected_digest: str | None = None) -> dict[str, Any
         }
         if env.get("sigil_root"):
             result["sigil_root"] = env["sigil_root"]
+        if env.get("has_vault"):
+            result["has_vault"] = True
         return _apply_expected(result, expected_digest)
+    except ValueError as exc:
+        detail = str(exc) if str(exc) == "bad PNG LSB magic" else f"png extract failed: {exc}"
+        return _apply_expected(
+            _fail(path=path, kind="png", detail=detail, channels=channels),
+            expected_digest,
+        )
     except Exception as exc:  # noqa: BLE001 — verify reports failure
         return _apply_expected(
             _fail(

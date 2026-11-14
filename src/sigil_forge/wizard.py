@@ -366,6 +366,46 @@ def wizard_script(path: str = "full") -> dict[str, Any]:
     }
 
 
+# Answer keys that must never be written to a session file or echoed back.
+# A session is a convenience record; a passphrase belongs in the environment.
+_SECRET_ANSWER_KEYS = frozenset(
+    {"passphrase", "password", "secret", "key", "nonce", "token", "sigil_forge_passphrase"}
+)
+
+
+def clean_answers(raw: dict[str, Any] | None) -> tuple[dict[str, Any], list[str]]:
+    """Keep only answers to real wizard steps; return (answers, ignored key names).
+
+    Anything else is dropped before it can be stored or printed. That includes
+    a passphrase an agent or script put into the answers by mistake: the
+    wizard has no passphrase step, and reads it from SIGIL_FORGE_PASSPHRASE or
+    ``--passphrase`` only when the forge runs.
+    """
+    known = {step["id"] for step in STEPS}
+    clean: dict[str, Any] = {}
+    ignored: list[str] = []
+    for key, value in (raw or {}).items():
+        if key in ("path", "session_id"):
+            continue
+        if isinstance(key, str) and key in known:
+            clean[key] = value
+        else:
+            ignored.append(str(key)[:40])
+    return clean, sorted(ignored)
+
+
+def _ignored_note(ignored: list[str]) -> dict[str, Any]:
+    if not ignored:
+        return {}
+    note: dict[str, Any] = {"ignored_answers": ignored}
+    if any(k.lower() in _SECRET_ANSWER_KEYS for k in ignored):
+        note["warning"] = (
+            "A secret was passed as a wizard answer. It was not stored or used. "
+            "Set SIGIL_FORGE_PASSPHRASE in the environment instead."
+        )
+    return note
+
+
 def default_answers() -> dict[str, Any]:
     out: dict[str, Any] = {}
     for step in STEPS:
@@ -446,10 +486,8 @@ def next_step(
     Early safety: if intent is present and fails check_intent, return refused.
     """
     p = _normalize_path(path)
-    raw = dict(answers or {})
-    # Strip non-answer keys
-    raw.pop("path", None)
-    raw.pop("session_id", None)
+    # Only real step answers are used or echoed back.
+    raw, _ignored = clean_answers(answers)
 
     intent = (raw.get("intent") or "").strip()
     if intent:
@@ -916,7 +954,7 @@ def save_session(
             "answers": {},
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
-    doc["answers"] = dict(answers)
+    doc["answers"], _ignored = clean_answers(answers)
     if path:
         doc["path"] = _normalize_path(path)
     doc["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -935,12 +973,15 @@ def session_next(
 ) -> dict[str, Any]:
     """Load session, merge answers, compute next, persist."""
     doc = load_session(session_id)
-    answers = dict(doc.get("answers") or {})
-    if merge_answers:
-        answers.update(merge_answers)
+    # A session written by an older version may hold extra keys; cleaning on
+    # load means the next save removes them from disk.
+    answers, _old = clean_answers(doc.get("answers") or {})
+    merged, ignored = clean_answers(merge_answers)
+    answers.update(merged)
     p = _normalize_path(path or doc.get("path") or "full")
     doc = save_session(session_id, answers, path=p)
     nxt = next_step(answers, path=p)
     nxt["session_id"] = doc["session_id"]
     nxt["session_path"] = str(session_path(doc["session_id"]))
+    nxt.update(_ignored_note(ignored))
     return nxt

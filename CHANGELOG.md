@@ -5,6 +5,23 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+### Security
+
+- The wizard no longer stores or echoes a passphrase passed as an answer. It keeps only answers
+  to real wizard steps, reports anything else by name under `ignored_answers`, and removes such
+  keys from an older session file the next time it is saved.
+- `verify-proof` no longer verifies a capsule and proofs copied in from another run. Every proof
+  must name the commitment and root in this run's own packet.
+
+### Fixed
+
+- `verify` and `inspect` read the product's own sealed wallpaper (the SF12 vault format). They
+  only knew the two older formats and reported "bad PNG LSB magic". Both now use one shared
+  probe, which also checks the vault's CRC without decrypting anything.
+- `inspect <run folder>` works; it used to report "file not found".
+- `verify-proof` reports a broken packet or proof manifest as a result instead of raising.
+- The test suite no longer fails when `SIGIL_FORGE_PASSPHRASE` is set in the developer's shell.
+
 ## 0.18.0 - 2026-11-13
 
 ### Added
