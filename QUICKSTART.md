@@ -1,6 +1,6 @@
 # Sigil-Forge quickstart
 
-Run from the skill root (clone or install dir). **Current version: 0.17.0.**
+Run from the skill root (clone or install dir). **Current version: 0.18.0.**
 
 **Product:** wallpaper PNG with intent + methods sealed in-image (SF12 vault).  
 Hermes packaging: **skill** (not plugin). Default install: `~/.hermes/skills/sigil-forge`.
