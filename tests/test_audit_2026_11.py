@@ -21,7 +21,9 @@ from sigil_forge.wallpaper.vault import probe_png_public
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = [sys.executable, str(ROOT / "scripts" / "sigil_forge.py")]
-SECRET = "hunter2-do-not-store"
+# A made-up marker standing in for a passphrase. It is not a credential; the
+# tests only check that this exact string never reaches disk or stdout.
+MARKER = "hunter2-do-not-store"
 INTENT = "I maintain calm focus"
 
 
@@ -35,9 +37,9 @@ def _session_text(session_id: str) -> str:
 @pytest.mark.parametrize("key", ["passphrase", "password", "secret", "token", "nonce"])
 def test_wizard_never_stores_or_echoes_a_secret_answer(key):
     sid = wizard.create_session("full")["session_id"]
-    out = wizard.session_next(sid, merge_answers={"intent": INTENT, key: SECRET})
-    assert SECRET not in json.dumps(out)
-    assert SECRET not in _session_text(sid)
+    out = wizard.session_next(sid, merge_answers={"intent": INTENT, key: MARKER})
+    assert MARKER not in json.dumps(out)
+    assert MARKER not in _session_text(sid)
     assert out["ignored_answers"] == [key]
     assert "SIGIL_FORGE_PASSPHRASE" in out["warning"]
     # The real answer is kept and the interview moves on.
@@ -57,11 +59,11 @@ def test_wizard_scrubs_a_secret_left_in_an_older_session_file():
     sid = wizard.create_session("quick")["session_id"]
     path = wizard.session_path(sid)
     doc = json.loads(path.read_text(encoding="utf-8"))
-    doc["answers"] = {"intent": INTENT, "passphrase": SECRET}
+    doc["answers"] = {"intent": INTENT, "passphrase": MARKER}
     path.write_text(json.dumps(doc), encoding="utf-8")
     out = wizard.session_next(sid)
-    assert SECRET not in json.dumps(out)
-    assert SECRET not in path.read_text(encoding="utf-8")
+    assert MARKER not in json.dumps(out)
+    assert MARKER not in path.read_text(encoding="utf-8")
 
 
 def test_wizard_cli_does_not_print_or_save_a_passphrase():
@@ -69,14 +71,14 @@ def test_wizard_cli_does_not_print_or_save_a_passphrase():
     sid = json.loads(new.stdout)["session"]["session_id"]
     r = subprocess.run(
         [*CLI, "wizard", "--session", sid, "--next", "--answers-json",
-         json.dumps({"intent": INTENT, "passphrase": SECRET})],
+         json.dumps({"intent": INTENT, "passphrase": MARKER})],
         capture_output=True, text=True,
     )
     assert r.returncode == 0, r.stderr
-    assert SECRET not in r.stdout and SECRET not in r.stderr
+    assert MARKER not in r.stdout and MARKER not in r.stderr
     state = Path(os.environ["SIGIL_FORGE_STATE_DIR"])
     for f in (state / "wizard-sessions").glob("*.json"):
-        assert SECRET not in f.read_text(encoding="utf-8")
+        assert MARKER not in f.read_text(encoding="utf-8")
 
 
 def test_clean_answers_keeps_every_real_step():
