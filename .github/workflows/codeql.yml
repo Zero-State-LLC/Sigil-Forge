@@ -18,7 +18,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [python]
+        # `actions` scans the workflow files themselves (missing permissions,
+        # script injection, unpinned actions). Without it, an old workflow
+        # alert can never be re-checked and stays open after it is fixed.
+        language: [python, actions]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -29,6 +32,9 @@ jobs:
         with:
           languages: ${{ matrix.language }}
       - name: Autobuild
+        if: matrix.language == 'python'
         uses: github/codeql-action/autobuild@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       - name: Analyze
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: "/language:${{ matrix.language }}"
