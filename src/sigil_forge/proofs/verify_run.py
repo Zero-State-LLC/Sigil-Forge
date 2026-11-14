@@ -111,11 +111,14 @@ def verify_proof_run(
     # Prefer Noir when generated; fall back to local capsule attestation
     attempts: list[tuple[str, Any, Any]] = []
     provider_name = manifest.get("provider") or "none"
+    # Only ever the file of that name inside this run's proofs folder: a
+    # manifest must not be able to point the verifier at a path elsewhere.
     proof_file = manifest.get("proof_file")
-    proof_path = Path(proof_file) if proof_file else None
-    if proof_path and not proof_path.is_file():
-        alt = run / "proofs" / Path(str(proof_file)).name
-        proof_path = alt if alt.is_file() else proof_path
+    proof_path = (
+        run / "proofs" / Path(str(proof_file)).name
+        if isinstance(proof_file, str) and proof_file
+        else None
+    )
 
     bind_error = ""
     if provider_name == "noir":

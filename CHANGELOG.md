@@ -36,6 +36,22 @@ All notable changes to this project are recorded here, newest first. The format 
 - `open` on a `.png` no longer needs `--wallpaper`.
 - `ledger --limit 0` (or less) returns nothing. It used to return everything.
 
+### Changed (smaller)
+
+- `--proof zk-knowledge` without a passphrase is an error, as `--proof commitment` already
+  was. It used to forge anyway, exit 0, and record the failure only inside the packet.
+- `check` reports `poi_ok` only when the run's root really recomputes from its leaves; it used
+  to be set as soon as the files existed.
+- `proof-manifest.json` records the proof file by name, and the packet records its final path.
+  Both used to hold the temporary staging path. `verify-proof` only ever reads the proof from
+  the run's own `proofs/` folder.
+- The receipt log gets its line only after a run exists, so a failed forge leaves no entry.
+- `forge-packet.json`, `forge-packet.md`, the learning ledger and canon proposals are created
+  owner-only, like the receipt files.
+- `learn --digest` must be 64 hex characters.
+- `doctor` has `aes_backend_note`, which says why the built-in AES-GCM is in use when it is. A
+  broken `cryptography` install used to fall back to it silently.
+
 ### Performance
 
 - Wallpapers are made faster with identical output. The background is filled a row at a time

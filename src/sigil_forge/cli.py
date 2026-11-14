@@ -234,7 +234,15 @@ def cmd_check(_: argparse.Namespace) -> int:
             if not (run_dir / "forge-manifest.json").is_file():
                 raise RuntimeError("dry construct missing forge-manifest.json")
             construct_ok = True
-            poi_ok = True
+            # Proof of Intent is "ok" only if the root really recomputes from
+            # its leaves and both manifests match them, not merely because
+            # the files exist.
+            from sigil_forge.forge_manifest import check_run_root
+
+            root_check = check_run_root(run_dir)
+            poi_ok = bool(root_check.get("ok")) and root_check.get("manifest_public_shape") is True
+            if not poi_ok:
+                construct_error = f"root check failed: {root_check.get('detail')}"
             v = verify_run(svg)
             verify_ok = bool(v.get("ok")) and v.get("intent_digest") == packet[
                 "intent_digest"
@@ -692,6 +700,16 @@ def cmd_learn(args: argparse.Namespace) -> int:
     channels = []
     if args.channels:
         channels = [c.strip() for c in args.channels.split(",") if c.strip()]
+    digest = getattr(args, "digest", None)
+    if digest is not None:
+        digest = str(digest).strip().lower()
+        if len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest):
+            print(
+                json.dumps({"ok": False, "error": "--digest must be 64 hex characters"}),
+                file=sys.stderr,
+            )
+            return 2
+        args.digest = digest
     entry = build_ledger_entry(
         class_name=args.entry_class,
         summary=args.summary,
@@ -850,7 +868,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     import importlib
     import platform
 
-    from sigil_forge.aes_gcm import backend as aes_backend
+    from sigil_forge.aes_gcm import backend as aes_backend, backend_note as aes_backend_note
     from sigil_forge.crypto_payload import argon2_available
     from sigil_forge.paths import skill_root
 
@@ -925,6 +943,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         else None,
         "argon2_available": argon2_available(),
         "aes_backend": aes_backend(),
+        "aes_backend_note": aes_backend_note(),
         "layout_raster": True,
         "missing": missing,
         "module_errors": module_errors,

@@ -69,6 +69,18 @@ def _make_parent(path: Path) -> None:
         parent.mkdir(parents=True, exist_ok=True)
 
 
+def _append_private_line(path: Path, line: str) -> None:
+    """Append one line; a file this call creates is owner-only (0600).
+
+    Used for the receipt log, the learning ledger and canon proposals alike.
+    An existing file keeps its mode.
+    """
+    _make_parent(path)
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+
+
 def default_ledger_path() -> Path:
     env = os.environ.get("SIGIL_FORGE_LEDGER")
     if env:
@@ -150,11 +162,7 @@ def write_receipt_file(receipt: dict[str, Any], path: Path) -> Path:
 
 def append_receipt_log(receipt: dict[str, Any], log_path: Path | None = None) -> Path:
     path = log_path or default_receipts_path()
-    _make_parent(path)
-    # A log this call creates is owner-only; an existing log keeps its mode.
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-    with os.fdopen(fd, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(receipt, sort_keys=True) + "\n")
+    _append_private_line(path, json.dumps(receipt, sort_keys=True))
     return path
 
 
@@ -190,9 +198,7 @@ def append_ledger(
     if entry.get("canon_status") != "PROPOSED":
         raise ValueError("learning ledger entries must be canon_status=PROPOSED")
     path = ledger_path or default_ledger_path()
-    _make_parent(path)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    _append_private_line(path, json.dumps(entry, sort_keys=True))
     return path
 
 
@@ -297,9 +303,7 @@ def promote_to_canon_proposal(
         "entry": entry,
         "note": "Operator-local proposal only; does not mutate skill references/",
     }
-    _make_parent(out_path)
-    with out_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(proposal, sort_keys=True) + "\n")
+    _append_private_line(out_path, json.dumps(proposal, sort_keys=True))
     return proposal
 
 

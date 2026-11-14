@@ -73,6 +73,13 @@ _CHANNEL_ORDER = (
 )
 
 
+def _final_proof_path(final_dir: Path, staged: str | None) -> str | None:
+    """Where a proof file will live once the run is promoted out of staging."""
+    if not staged:
+        return None
+    return str(final_dir / "proofs" / Path(staged).name)
+
+
 def _ch(cid: str, status: str, detail: str) -> dict[str, str]:
     return {"id": cid, "status": status, "detail": detail}
 
@@ -235,9 +242,11 @@ def run(
             "seal_packet=True requires passphrase "
             f"(--passphrase or ${PASSPHRASE_ENV})"
         )
-    if proof_mode == "commitment" and not passphrase:
+    if proof_mode in ("commitment", "zk-knowledge") and not passphrase:
+        # Both modes seal a capsule. zk-knowledge used to forge anyway and
+        # record the failure only inside the packet, with exit code 0.
         raise ValueError(
-            "proof=commitment requires passphrase for intent capsule "
+            f"proof={proof_mode} requires passphrase for intent capsule "
             f"(--passphrase or ${PASSPHRASE_ENV})"
         )
 
@@ -452,6 +461,7 @@ def run(
             pass
         raise
 
+    pending_receipt: dict[str, Any] | None = None
     try:
         svg_path = staging / "glyph.svg"
         svg_path.write_text(stego_svg, encoding="utf-8")
@@ -835,7 +845,7 @@ def run(
                 "provider": local.provider,
                 "proof_kind": local.proof_kind,
                 "detail": local.detail,
-                "proof_path": local.proof_path,
+                "proof_path": _final_proof_path(final_dir, local.proof_path),
             }
             artifacts["proofs_dir"] = str(final_dir / "proofs")
 
@@ -863,7 +873,7 @@ def run(
                     "provider": nres.provider,
                     "proof_kind": nres.proof_kind,
                     "detail": nres.detail,
-                    "proof_path": nres.proof_path,
+                    "proof_path": _final_proof_path(final_dir, nres.proof_path),
                     "local_attestation_status": local.status,
                 }
         elif proof_mode == "zk-forge":
@@ -898,7 +908,7 @@ def run(
                 "provider": rres.provider,
                 "proof_kind": rres.proof_kind,
                 "detail": rres.detail,
-                "proof_path": rres.proof_path,
+                "proof_path": _final_proof_path(final_dir, rres.proof_path),
             }
             artifacts["proofs_dir"] = str(final_dir / "proofs")
         elif proof_mode == "zk-knowledge" and not passphrase:
@@ -931,11 +941,7 @@ def run(
         write_packet_files(packet, staging)
 
         if write_receipt:
-            from sigil_forge.receipt import (
-                append_receipt_log,
-                build_run_receipt,
-                write_receipt_file,
-            )
+            from sigil_forge.receipt import build_run_receipt, write_receipt_file
 
             version = "0.0.0"
             vpath = skill_root() / "VERSION"
@@ -944,10 +950,7 @@ def run(
             # verify_ok filled after promote when caller re-verifies; leave None
             receipt = build_run_receipt(packet, skill_version=version, verify_ok=None)
             write_receipt_file(receipt, staging / "run-receipt.json")
-            try:
-                append_receipt_log(receipt)
-            except OSError:
-                pass
+            pending_receipt = receipt
 
         # Promote staging → final, onto the empty folder claimed at the start.
         try:
@@ -958,6 +961,15 @@ def run(
             for entry in sorted(staging.iterdir()):
                 os.rename(entry, final_dir / entry.name)
             os.rmdir(staging)
+        if pending_receipt is not None:
+            # Logged only now: a forge that failed must not leave a log line
+            # for a run folder that does not exist.
+            from sigil_forge.receipt import append_receipt_log
+
+            try:
+                append_receipt_log(pending_receipt)
+            except OSError:
+                pass
         staging = None  # ownership transferred
         return packet
     finally:

@@ -91,6 +91,11 @@ def run_spare(
             status=meta["status"],
             spare_letters=letters,
             letter_sequence=seq,
+            # This label names the METHOD's guarantee and is the same for every
+            # intent on purpose: it is copied into the public manifest, so
+            # varying it when no consonants survive would reveal that about
+            # the intent. Whether a monogram was drawn is in the private
+            # method manifest (the spare_monogram channel status).
             semantic_verification="VERIFIED_geometry_from_letters",
             notes=["Default deterministic Spare letter-monogram method"],
         )
