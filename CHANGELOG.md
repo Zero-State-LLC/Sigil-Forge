@@ -12,9 +12,32 @@ All notable changes to this project are recorded here, newest first. The format 
   keys from an older session file the next time it is saved.
 - `verify-proof` no longer verifies a capsule and proofs copied in from another run. Every proof
   must name the commitment and root in this run's own packet.
+- `open` checks what it decrypts against the file's own `intent_digest`. A packet or capsule
+  carrying another run's sealed part is refused instead of returning the wrong intent.
+- Crafted files can no longer stall or exhaust the readers. A 4 MB SVG of unterminated tags
+  kept `verify` busy for over two minutes and now takes a fraction of a second; a 300 KB PNG
+  claiming 100 megapixels used over a gigabyte and is now refused. Every command reads files
+  through one bounded reader (`sigil_forge.safe_io`) that refuses links, pipes and oversized
+  input. The PNG pixel limit is 40 megapixels (8K is 33).
+- `phoneme-sequence.json`, written by `--phonetic`, is owner-only. The intent can be read back
+  from it.
+
+### Changed
+
+- Forging the same intent twice in one second no longer replaces the first run. Each run claims
+  its folder atomically, and a second one gets a `-2` suffix. Forges running at once each keep
+  their run.
+- `--embed vault` without a passphrase is an error. It used to report success and write an
+  unsealed wallpaper.
+- A vault built from a sealed packet now holds the intent, recovered with the same passphrase.
+  It used to seal an empty value, and `open --wallpaper` then printed a blank line.
+- `open` on a `.png` no longer needs `--wallpaper`.
+- `ledger --limit 0` (or less) returns nothing. It used to return everything.
 
 ### Fixed
 
+- Unexpected errors no longer print a Python traceback. The CLI reports one JSON line and exits
+  1; set `SIGIL_FORGE_DEBUG=1` to see the traceback.
 - `verify` and `inspect` read the product's own sealed wallpaper (the SF12 vault format). They
   only knew the two older formats and reported "bad PNG LSB magic". Both now use one shared
   probe, which also checks the vault's CRC without decrypting anything.

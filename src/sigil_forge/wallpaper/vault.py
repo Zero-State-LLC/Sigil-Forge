@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from sigil_forge.crypto_payload import open_intent, seal_intent
+from sigil_forge.safe_io import MAX_PNG_FILE_BYTES, read_regular
 from sigil_forge.stego_png import (
     DIGEST_LEN,
     embed_lsb,
@@ -260,7 +261,7 @@ def probe_png_public(data: bytes, *, max_bytes: int = 512_000) -> dict[str, Any]
 
 def extract_payload_from_png(png_path: Path | str, *, max_bytes: int = 512_000) -> bytes:
     """Extract LSB payload by probing magic + length headers."""
-    data = Path(png_path).read_bytes()
+    data = read_regular(png_path, MAX_PNG_FILE_BYTES)
     # Read enough for SF12 header
     head = extract_lsb(data, min(SF12_HEADER_LEN, max_bytes))
     if head[:4] == SF12_MAGIC:
@@ -296,7 +297,7 @@ def embed_vault_png(
         sigil_root=sigil_root,
         sealed_blob=sealed_blob,
     )
-    w, h, rgb = read_rgb_png(path.read_bytes())
+    w, h, rgb = read_rgb_png(read_regular(path, MAX_PNG_FILE_BYTES))
     clean = write_rgb_png(w, h, rgb)
     out = embed_lsb(clean, payload)
     path.write_bytes(out)
@@ -326,5 +327,5 @@ def open_wallpaper_vault(
 
 
 def png_capacity_bytes(png_path: Path | str) -> int:
-    w, h, rgb = read_rgb_png(Path(png_path).read_bytes())
+    w, h, rgb = read_rgb_png(read_regular(png_path, MAX_PNG_FILE_BYTES))
     return len(rgb) // 8  # 1 bit per sample

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from sigil_forge.safe_io import MAX_PNG_FILE_BYTES, MAX_SVG_BYTES, read_regular, read_text
 from sigil_forge.stego_svg import extract as extract_svg
 
 
@@ -27,8 +28,7 @@ def inspect_path(path: Path | str) -> dict[str, Any]:
     try:
         if p.is_file() and (suffix == ".svg" or _looks_svg(p)):
             out["carrier"] = "SVG"
-            text = p.read_text(encoding="utf-8")
-            got = extract_svg(text)
+            got = extract_svg(read_text(p, MAX_SVG_BYTES))
             out["intent_digest"] = got.get("intent_digest")
             out["sigil_root"] = got.get("sigil_root")
             out["format_version"] = got.get("version") or (2 if got.get("sigil_root") else 1)
@@ -40,7 +40,7 @@ def inspect_path(path: Path | str) -> dict[str, Any]:
             out["carrier"] = "PNG"
             from sigil_forge.wallpaper.vault import probe_png_public
 
-            env = probe_png_public(p.read_bytes())
+            env = probe_png_public(read_regular(p, MAX_PNG_FILE_BYTES))
             out["format_version"] = env.get("format")
             out["intent_digest"] = env.get("intent_digest")
             out["sigil_root"] = env.get("sigil_root")
@@ -72,6 +72,9 @@ def inspect_path(path: Path | str) -> dict[str, Any]:
                 return out
 
         out["detail"] = f"unsupported artifact type {suffix!r}"
+        return out
+    except UnicodeDecodeError:
+        out["detail"] = "not a text file"
         return out
     except Exception as exc:  # noqa: BLE001
         out["detail"] = str(exc)

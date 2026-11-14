@@ -159,9 +159,12 @@ def build_wallpaper(
     vault_status = "skipped"
     if embed_mode == "vault":
         if not passphrase:
-            vault_status = "failed_no_passphrase"
-            # Fall back to public SF11 so wallpaper still binds digests
-            embed_mode = "sf11" if packet.get("sigil_root") else "intent_digest"
+            # The operator asked for a sealed vault. Quietly writing an
+            # unsealed wallpaper and reporting success would mislead them.
+            raise ValueError(
+                "--embed vault needs a passphrase (SIGIL_FORGE_PASSPHRASE or --passphrase); "
+                "use --embed auto for an unsealed wallpaper"
+            )
         else:
             from sigil_forge.wallpaper.vault import build_vault_document, seal_vault
 
@@ -174,6 +177,24 @@ def build_wallpaper(
                     version = vpath.read_text(encoding="utf-8").strip() or version
             except Exception:
                 pass
+            if not (intent or packet.get("normalized_intent") or packet.get("intent")):
+                # A sealed packet holds no plaintext. Recover it with the same
+                # passphrase, or the vault would be sealed around nothing.
+                sealed_intent = packet.get("sealed_intent")
+                if isinstance(sealed_intent, dict):
+                    from sigil_forge.crypto_payload import open_intent
+
+                    try:
+                        intent = open_intent(sealed_intent, passphrase)
+                    except Exception as exc:  # noqa: BLE001 - wrong passphrase or damaged
+                        raise ValueError(
+                            "cannot build the wallpaper vault: this run's intent is sealed "
+                            "and this passphrase does not open it"
+                        ) from exc
+                if not intent:
+                    raise ValueError(
+                        "cannot build the wallpaper vault: this run holds no intent to seal"
+                    )
             vault_doc = build_vault_document(
                 packet=packet,
                 intent=intent,

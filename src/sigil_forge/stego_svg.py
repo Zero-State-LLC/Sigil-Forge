@@ -83,8 +83,55 @@ def _encode_float_bit(val: float, bit: int) -> float:
 
 
 def _decode_float_bit(val: float) -> int:
+    # A hostile file can hold 1e999 (infinity) or NaN; neither sits on the grid.
+    if val != val or val in (float("inf"), float("-inf")):
+        raise ValueError("not a finite coordinate")
     q = int(round(val / EPS))
     return q % 2
+
+
+def _element_text(svg: str, lowered: str, tag: str) -> str | None:
+    """Text of the first ``<tag ...>...</tag>``, found by plain scanning.
+
+    Same result as the lazy regex this replaced, in linear time. That regex
+    was quadratic on a file full of unterminated opening tags, so a few
+    megabytes of them could stall ``verify`` for minutes.
+    """
+    open_tag, close_tag = "<" + tag, "</" + tag + ">"
+    start = 0
+    while True:
+        i = lowered.find(open_tag, start)
+        if i < 0:
+            return None
+        after = lowered[i + len(open_tag) : i + len(open_tag) + 1]
+        if after and (after.isalnum() or after in "_-:."):
+            start = i + len(open_tag)  # a longer tag name, e.g. <sf:payloadx
+            continue
+        j = lowered.find(">", i)
+        if j < 0:
+            return None
+        k = lowered.find(close_tag, j + 1)
+        if k < 0:
+            return None
+        return svg[j + 1 : k]
+
+
+_GEOM_ATTR = re.compile(r"\b(?:points|d)=(['\"])", flags=re.IGNORECASE)
+
+
+def _geometry_attr_values(svg: str):
+    """Values of every ``points=`` / ``d=`` attribute, in linear time."""
+    pos = 0
+    while True:
+        m = _GEOM_ATTR.search(svg, pos)
+        if not m:
+            return
+        end = svg.find(m.group(1), m.end())
+        if end < 0:
+            pos = m.end()  # unterminated quote: skip this one, as the regex did
+            continue
+        yield svg[m.end() : end]
+        pos = end + 1
 
 
 def _perturb_float_string(s: str, bit: int) -> str:
@@ -370,20 +417,13 @@ def extract(svg: str) -> dict[str, Any]:
     }
 
     # Prefer sf:payload text (with or without namespace prefix)
-    m = re.search(
-        r"<sf:payload\b[^>]*>(.*?)</sf:payload>",
-        svg,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-    if not m:
+    lowered = svg.lower()
+    payload_text = _element_text(svg, lowered, "sf:payload")
+    if payload_text is None:
         # Clark/expanded or unprefixed payload inside metadata
-        m = re.search(
-            r"<payload\b[^>]*>(.*?)</payload>",
-            svg,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-    if m:
-        obj = _parse_payload_b64(m.group(1))
+        payload_text = _element_text(svg, lowered, "payload")
+    if payload_text is not None:
+        obj = _parse_payload_b64(payload_text)
         if obj is not None:
             d = obj.get("d")
             if isinstance(d, str) and d:
@@ -416,15 +456,11 @@ def extract(svg: str) -> dict[str, Any]:
 
     # path_epsilon: recoverable when floats sit on EPS parity grid
     geom_bits: list[int] = []
-    for attr_m in re.finditer(
-        r'\b(?:points|d)=([\'"])(.*?)\1',
-        svg,
-        flags=re.IGNORECASE | re.DOTALL,
-    ):
-        for fm in _FLOAT_RE.finditer(attr_m.group(2)):
+    for attr_value in _geometry_attr_values(svg):
+        for fm in _FLOAT_RE.finditer(attr_value):
             try:
                 geom_bits.append(_decode_float_bit(float(fm.group(0))))
-            except ValueError:
+            except (ValueError, OverflowError):
                 continue
     if geom_bits:
         result["channels_detected"].append("path_epsilon")

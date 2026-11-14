@@ -134,7 +134,7 @@ They are private:
 
 - `forge-packet.json` and `forge-packet.md`: hold the plaintext intent.
 - `run-receipt.json` and the receipt log: hold data derived from the intent.
-- `intent-capsule.json` and anything under `proofs/`.
+- `intent-capsule.json`, `phoneme-sequence.json` and anything under `proofs/`.
 - `method-manifest.json`, and `forge-manifest.json` from any run made before
   version 0.18.
 

@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from sigil_forge.safe_io import MAX_PNG_FILE_BYTES, MAX_SVG_BYTES, read_regular, read_text
 from sigil_forge.stego_svg import expected_epsilon_bits
 from sigil_forge.stego_svg import extract as extract_svg
 
@@ -129,8 +130,20 @@ def _apply_expected(
 
 
 def _verify_svg(path: Path, expected_digest: str | None = None) -> dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
-    got = extract_svg(text)
+    try:
+        text = read_text(path, MAX_SVG_BYTES)
+        got = extract_svg(text)
+    except (OSError, ValueError, OverflowError, RecursionError) as exc:
+        # Too large, not text, a link or pipe, or numbers no glyph contains.
+        return _apply_expected(
+            _fail(
+                path=path,
+                kind="svg",
+                detail=f"svg read failed: {type(exc).__name__}",
+                channels=[],
+            ),
+            expected_digest,
+        )
     digest = _normalize_digest(got.get("intent_digest"))
     sigil_root = _normalize_digest(got.get("sigil_root"))
     channels = list(got.get("channels_detected") or [])
@@ -212,7 +225,7 @@ def _verify_png(path: Path, expected_digest: str | None = None) -> dict[str, Any
     try:
         from sigil_forge.wallpaper.vault import probe_png_public
 
-        env = probe_png_public(path.read_bytes())
+        env = probe_png_public(read_regular(path, MAX_PNG_FILE_BYTES))
         digest_hex = env.get("intent_digest")
         channels.append("png_lsb")
         if env.get("format") == "SF11":

@@ -87,7 +87,9 @@ def write_rgb_png(width: int, height: int, rgb: bytes) -> bytes:
 
 # Largest image read_rgb_png will decode: 100 megapixels, three times an 8K
 # frame. The header is untrusted and this pure-Python reader holds every pixel.
-MAX_PNG_PIXELS = 100_000_000
+# 8K UHD is 33 megapixels and the largest wallpaper profile is 5. At the old
+# limit of 100 a 300 KB crafted file made the reader allocate over a gigabyte.
+MAX_PNG_PIXELS = 40_000_000
 
 
 def inflate_bounded(data: bytes, limit: int) -> bytes:
