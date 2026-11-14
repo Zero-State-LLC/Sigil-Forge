@@ -5,8 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from sigil_forge.stego_envelope import unpack_envelope
-from sigil_forge.stego_png import extract_lsb
 from sigil_forge.stego_svg import extract as extract_svg
 
 
@@ -21,13 +19,13 @@ def inspect_path(path: Path | str) -> dict[str, Any]:
         "sigil_root": None,
         "associated_proof": None,
     }
-    if not p.is_file():
+    if not p.exists():
         out["detail"] = "file not found"
         return out
 
     suffix = p.suffix.lower()
     try:
-        if suffix == ".svg" or _looks_svg(p):
+        if p.is_file() and (suffix == ".svg" or _looks_svg(p)):
             out["carrier"] = "SVG"
             text = p.read_text(encoding="utf-8")
             got = extract_svg(text)
@@ -38,18 +36,15 @@ def inspect_path(path: Path | str) -> dict[str, Any]:
             out["ok"] = bool(out["intent_digest"])
             return out
 
-        if suffix == ".png" or _looks_png(p):
+        if p.is_file() and (suffix == ".png" or _looks_png(p)):
             out["carrier"] = "PNG"
-            data = p.read_bytes()
-            peek = extract_lsb(data, 4)
-            if peek == b"SF11":
-                raw = extract_lsb(data, 4 + 1 + 1 + 32 + 32 + 4)
-            else:
-                raw = extract_lsb(data, 4 + 32)
-            env = unpack_envelope(raw)
+            from sigil_forge.wallpaper.vault import probe_png_public
+
+            env = probe_png_public(p.read_bytes())
             out["format_version"] = env.get("format")
             out["intent_digest"] = env.get("intent_digest")
             out["sigil_root"] = env.get("sigil_root")
+            out["has_vault"] = bool(env.get("has_vault"))
             out["ok"] = bool(out["intent_digest"] or out["sigil_root"])
             return out
 

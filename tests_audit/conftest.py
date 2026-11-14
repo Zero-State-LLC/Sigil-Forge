@@ -19,5 +19,14 @@ import tempfile as _tempfile
 _state = _tempfile.mkdtemp(prefix="sigil-forge-test-state-")
 _atexit.register(_shutil.rmtree, _state, ignore_errors=True)
 _os.environ["SIGIL_FORGE_STATE_DIR"] = _state
-for _name in ("SIGIL_FORGE_RECEIPTS", "SIGIL_FORGE_LEDGER", "SIGIL_FORGE_CANON_PROPOSALS"):
+# A passphrase or command left in the developer's shell would change what
+# construct does (sealing, proofs, backgrounds) and fail unrelated tests.
+for _name in (
+    "SIGIL_FORGE_RECEIPTS",
+    "SIGIL_FORGE_LEDGER",
+    "SIGIL_FORGE_CANON_PROPOSALS",
+    "SIGIL_FORGE_PASSPHRASE",
+    "SIGIL_FORGE_BG_COMMAND",
+    "SIGIL_FORGE_AES_BACKEND",
+):
     _os.environ.pop(_name, None)

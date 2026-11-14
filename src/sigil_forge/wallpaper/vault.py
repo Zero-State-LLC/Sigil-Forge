@@ -217,6 +217,47 @@ def unpack_sf12(payload: bytes) -> dict[str, Any]:
     }
 
 
+def probe_png_public(data: bytes, *, max_bytes: int = 512_000) -> dict[str, Any]:
+    """Public header of whatever payload a PNG carries: SF12, SF11 or SF1.
+
+    Returns ``{format, intent_digest, sigil_root, has_vault}``. Nothing is
+    decrypted and no passphrase is needed. For SF12 the whole payload is read
+    and its CRC checked, so a damaged vault is reported, not half-read. Raises
+    ValueError when the image carries none of the three formats.
+
+    ``verify`` and ``inspect`` both use this, so they cannot disagree about
+    which formats exist.
+    """
+    from sigil_forge.stego_envelope import unpack_envelope
+
+    head = extract_lsb(data, min(SF12_HEADER_LEN, max_bytes))
+    magic = head[:4]
+    if magic == SF12_MAGIC:
+        (sealed_len,) = struct.unpack(">I", head[70:74])
+        total = SF12_HEADER_LEN + sealed_len + 4
+        if total > max_bytes:
+            raise ValueError(f"SF12 payload too large: {total}")
+        got = unpack_sf12(extract_lsb(data, total))
+        return {
+            "format": "SF12",
+            "intent_digest": got["intent_digest"],
+            "sigil_root": got["sigil_root"],
+            "has_vault": got["has_vault"],
+        }
+    if magic == b"SF11":
+        env = unpack_envelope(extract_lsb(data, 4 + 1 + 1 + 32 + 32 + 4))
+    elif magic == b"SF1\x00":
+        env = unpack_envelope(extract_lsb(data, 4 + DIGEST_LEN))
+    else:
+        raise ValueError("bad PNG LSB magic")
+    return {
+        "format": env.get("format"),
+        "intent_digest": env.get("intent_digest"),
+        "sigil_root": env.get("sigil_root"),
+        "has_vault": False,
+    }
+
+
 def extract_payload_from_png(png_path: Path | str, *, max_bytes: int = 512_000) -> bytes:
     """Extract LSB payload by probing magic + length headers."""
     data = Path(png_path).read_bytes()

@@ -10,6 +10,19 @@ from sigil_forge.proofs.manifest import load_proof_manifest
 from sigil_forge.proofs.registry import get_provider
 
 
+def _run_binding_error(
+    public_inputs: dict[str, Any], packet_commitment: Any, packet_root: Any
+) -> str:
+    """Why these proof inputs do not belong to this run; empty when they do."""
+    if not packet_commitment or not packet_root:
+        return "run has no forge-packet.json commitment to check the proof against"
+    if public_inputs.get("intent_commitment") != packet_commitment:
+        return "proof files name a different commitment than this run's packet"
+    if public_inputs.get("sigil_root") not in (None, "", packet_root):
+        return "proof files name a different sigil_root than this run's packet"
+    return ""
+
+
 def verify_proof_run(
     run_dir: Path | str,
     *,
@@ -36,7 +49,14 @@ def verify_proof_run(
     packet_path = run / "forge-packet.json"
     packet: dict[str, Any] = {}
     if packet_path.is_file():
-        packet = json.loads(packet_path.read_text(encoding="utf-8"))
+        try:
+            packet = json.loads(packet_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            out["detail"] = f"cannot read forge-packet.json: {type(exc).__name__}"
+            return out
+        if not isinstance(packet, dict):
+            out["detail"] = "forge-packet.json is not an object"
+            return out
         ic = packet.get("intent_commitment") or {}
         out["intent_commitment"] = (
             ic.get("value") if isinstance(ic, dict) else None
@@ -48,17 +68,27 @@ def verify_proof_run(
             or packet.get("schema_version")
         )
 
-    manifest = load_proof_manifest(run)
+    try:
+        manifest = load_proof_manifest(run)
+    except (OSError, ValueError) as exc:
+        out["detail"] = f"cannot read proofs/proof-manifest.json: {type(exc).__name__}"
+        return out
     if not manifest:
         out["detail"] = "no proofs/proof-manifest.json"
+        return out
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("public_inputs") or {}, dict):
+        out["detail"] = "proofs/proof-manifest.json is malformed"
         return out
 
     out["provider"] = manifest.get("provider")
     out["proof_kind"] = manifest.get("proof_kind")
     pub = dict(manifest.get("public_inputs") or {})
-    out["intent_commitment"] = pub.get("intent_commitment") or out["intent_commitment"]
+    # What this run's own packet records. The proof files are only evidence
+    # for this run if they name the same commitment and root; otherwise they
+    # are someone else's proof sitting in this folder.
+    packet_commitment = out["intent_commitment"]
+    packet_root = out["sigil_root"]
     out["intent_commitment_zk"] = pub.get("intent_commitment_zk")
-    out["sigil_root"] = pub.get("sigil_root") or out["sigil_root"]
     out["forge_version"] = pub.get("forge_version") or out["forge_version"]
 
     if manifest.get("status") == "failed" and not manifest.get("local_attestation"):
@@ -95,6 +125,10 @@ def verify_proof_run(
             or pub.get("intent_len") != recorded.get("intent_len")
         ):
             bind_error = "noir proof is not bound to this run's packet commitment"
+    # Every provider's proof must name this run's commitment and root. Without
+    # this, a capsule and proofs copied in from another run would verify here.
+    if not bind_error:
+        bind_error = _run_binding_error(pub, packet_commitment, packet_root)
     if manifest.get("status") == "generated" and provider_name not in ("none",) and not bind_error:
         attempts.append((str(provider_name), proof_path, pub))
 
@@ -109,8 +143,15 @@ def verify_proof_run(
     # passphrase. Without one its presence is reported but proves nothing.
     out["attestation_present"] = local_att.is_file()
     needs_passphrase = local_att.is_file() and not passphrase
+    local_bind_error = ""
     if local_att.is_file() and passphrase:
-        attempts.append(("local_capsule", local_att, local_extra_pub))
+        # Opening the capsule shows it matches the commitment in the proof
+        # files. That commitment must also be this run's.
+        local_bind_error = _run_binding_error(
+            local_extra_pub, packet_commitment, packet_root
+        ) or _run_binding_error(pub, packet_commitment, packet_root)
+        if not local_bind_error and ("local_capsule", local_att, local_extra_pub) not in attempts:
+            attempts.append(("local_capsule", local_att, local_extra_pub))
 
     if not attempts and manifest.get("status") == "skipped":
         out["detail"] = manifest.get("detail") or "proof skipped"
@@ -118,7 +159,7 @@ def verify_proof_run(
             out["detail"] += "; passphrase required to verify the local attestation"
         return out
 
-    last_err = bind_error
+    last_err = "; ".join(dict.fromkeys(e for e in (bind_error, local_bind_error) if e))
     for pname, ppath, pinputs in attempts:
         try:
             provider = get_provider(pname)
