@@ -5,6 +5,12 @@ All notable changes to this project are recorded here, newest first. The format 
 
 ## Unreleased
 
+## 0.19.0 - 2026-11-14
+
+This release is the result of an audit of 0.18.0. Three changes are worth reading first if you
+script the CLI: `--embed vault` and `--proof zk-knowledge` now fail without a passphrase, and a
+run id can end in `-2`.
+
 ### Security
 
 - The wizard no longer stores or echoes a passphrase passed as an answer. It keeps only answers
