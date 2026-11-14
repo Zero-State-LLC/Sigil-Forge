@@ -53,6 +53,10 @@ jobs:
       - name: Hermes frontmatter
         run: python3 scripts/validate_hermes_skill.py
       - name: Tests
+        # The optional leg must really exercise the Noir toolchain it installed;
+        # the variable turns a silent skip of those tests into a failure.
+        env:
+          SIGIL_FORGE_REQUIRE_NOIR: ${{ matrix.deps == 'optional' && '1' || '' }}
         run: python3 -m pytest -q
       - name: Install preview
         run: bash install.sh --dry-run

@@ -106,7 +106,7 @@ def test_capsule_roundtrip():
     assert "i maintain calm focus" not in dumped
     w = open_capsule(cap, "test-secret")
     assert w["normalized_intent"] == "i maintain calm focus"
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         open_capsule(cap, "wrong")
 
 

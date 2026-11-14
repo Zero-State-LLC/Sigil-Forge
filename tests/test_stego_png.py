@@ -1,5 +1,7 @@
 """PNG LSB stego: pure-Python RGB PNG + synthetic round-trip (no SVG raster)."""
 
+import pytest
+
 from sigil_forge.stego_png import embed_lsb, extract_lsb, pack_payload, read_rgb_png, write_rgb_png
 from sigil_forge.raster_svg import svg_to_png_bytes
 
@@ -56,11 +58,10 @@ def test_pack_payload_magic_and_optional_sealed():
 def test_payload_too_large_raises():
     # 2x2 RGB = 12 bytes capacity = 12 bits usable for payload → 1 full byte max
     png = write_rgb_png(2, 2, bytes(12))
-    try:
+    with pytest.raises(ValueError) as caught:
         embed_lsb(png, b"SF1\x00" + b"\x00" * 32)
-        assert False, "expected ValueError"
-    except ValueError as e:
-        assert "capacity" in str(e).lower() or "large" in str(e).lower()
+    message = str(caught.value).lower()
+    assert "capacity" in message or "large" in message
 
 
 def test_raster_svg_returns_none_without_backend():

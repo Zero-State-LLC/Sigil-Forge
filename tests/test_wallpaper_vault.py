@@ -87,7 +87,7 @@ def test_wallpaper_embeds_vault(tmp_path: Path):
     # wrong passphrase fails
     import pytest
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         open_wallpaper_vault(wp, "wrong-pass")
 
 

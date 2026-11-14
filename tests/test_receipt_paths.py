@@ -131,7 +131,7 @@ def test_receipt_has_no_plaintext_or_nonce_but_is_not_digests_only(tmp_path, mon
     monkeypatch.setenv("SIGIL_FORGE_RECEIPTS", str(tmp_path / "log.jsonl"))
     result = construct_run(intent, out_root=tmp_path / "products")
     path = result["artifacts"]["receipt_json"]
-    text = open(path, encoding="utf-8").read()
+    text = Path(path).read_text(encoding="utf-8")
     assert intent.lower() not in text.lower()
     assert "nonce" not in text.lower()
     methods = json.loads(text)["methods"]

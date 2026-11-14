@@ -183,11 +183,12 @@ def test_bind_runes_modern_derivation_label(tmp_path: Path):
     assert ont_bind["claimed_historical_status"] == "modern_derivation"
 
 
-def test_refuse_goetic_entity_request():
+def test_refuse_goetic_entity_request(tmp_path):
     with pytest.raises(ValueError, match=r"AUTHORITY_SEAL_EXCLUDED|excluded"):
         assert_not_entity_seal_request("draw a goetic seal for me")
     with pytest.raises(ValueError, match=r"AUTHORITY_SEAL_EXCLUDED|excluded"):
-        construct_run("I want a goetic seal of Asmodeus", out_root=Path("/tmp"))
+        construct_run("I want a goetic seal of Asmodeus", out_root=tmp_path)
+    assert list(tmp_path.iterdir()) == []  # refused before anything was written
 
 
 def test_ontology_helper_shape():
